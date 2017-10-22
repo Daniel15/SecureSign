@@ -55,6 +55,7 @@ namespace SecureSign.Core
 		    var path = GetPathForSecret(name);
 			var protector = CreateProtector(code);
 			var encryptedKey = protector.Protect(contents);
+		    Directory.CreateDirectory(Path.GetDirectoryName(path));
 			File.WriteAllBytes(path, encryptedKey);
 	    }
 
