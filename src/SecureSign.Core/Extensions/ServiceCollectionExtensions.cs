@@ -49,7 +49,7 @@ namespace SecureSign.Core.Extensions
 		/// <returns></returns>
 	    private static string GetEncryptionKeyPathOrThrow(IConfiguration config)
 	    {
-		    var path = config["paths:encryptionKeys"];
+		    var path = config["Paths:EncryptionKeys"];
 		    if (string.IsNullOrWhiteSpace(path))
 		    {
 			    throw new InvalidOperationException("encryptionKeys path was not properly configured!");

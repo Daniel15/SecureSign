@@ -5,9 +5,15 @@ VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecureSign.Web", "SecureSign.Web\SecureSign.Web.csproj", "{BD40EDCD-D078-47FA-B426-543819A3F950}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureSign.Tools", "SecureSign.Tools\SecureSign.Tools.csproj", "{A821615E-5E26-4053-B167-8010A0688C61}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecureSign.Tools", "SecureSign.Tools\SecureSign.Tools.csproj", "{A821615E-5E26-4053-B167-8010A0688C61}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureSign.Core", "SecureSign.Core\SecureSign.Core.csproj", "{03D50CFA-CFD7-4CBD-AE9E-0340077C86A3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SecureSign.Core", "SecureSign.Core\SecureSign.Core.csproj", "{03D50CFA-CFD7-4CBD-AE9E-0340077C86A3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{B91FF362-B137-4D1E-8891-C1DFFFF5E890}"
+	ProjectSection(SolutionItems) = preProject
+		..\.gitignore = ..\.gitignore
+		..\appsettings.json = ..\appsettings.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

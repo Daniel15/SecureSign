@@ -7,6 +7,7 @@
 
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using SecureSign.Core.Extensions;
 
 namespace SecureSign.Web
 {
@@ -19,6 +20,7 @@ namespace SecureSign.Web
 
         public static IWebHost BuildWebHost(string[] args) =>
             WebHost.CreateDefaultBuilder(args)
+				.ConfigureAppConfiguration(builder => builder.AddSecureSignConfig())
                 .UseStartup<Startup>()
                 .Build();
     }

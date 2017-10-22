@@ -13,6 +13,11 @@ namespace SecureSign.Core.Models
     public class PathConfig
     {
 		/// <summary>
+		/// The root directory for the SecureSign app
+		/// </summary>
+		public string Root { get; set; }
+
+		/// <summary>
 		/// Gets or sets the path to store encryption keys
 		/// </summary>
 		public string EncryptionKeys { get; set; }

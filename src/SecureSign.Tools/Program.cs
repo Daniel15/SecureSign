@@ -15,7 +15,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SecureSign.Core;
-using SecureSign.Core.Exceptions;
 using SecureSign.Core.Extensions;
 using SecureSign.Core.Models;
 
@@ -36,31 +35,9 @@ namespace SecureSign.Tools
 
 		private static IConfiguration BuildConfig()
 		{
-			IConfigurationBuilder builder = new ConfigurationBuilder();
-			var maybeWebDirectory = Path.Combine(Directory.GetCurrentDirectory(), "..", "SecureSign.Web");
-			if (Directory.Exists(maybeWebDirectory))
-			{
-				// Development-like environment, so the core config file is in the SecureSign.Web directory
-				builder = builder
-					.SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), ".."))
-					.AddJsonFile("SecureSign.Tools/appsettings.json", optional: true)
-					.AddJsonFile("SecureSign.Web/appsettings.json", optional: false)
-					.AddInMemoryCollection(new Dictionary<string, string>
-					{
-						{"SecureSignWebConfigPath", Path.Combine(Directory.GetCurrentDirectory(), "..", "SecureSign.Web/appsettings.json")},
-					});
-			}
-			else
-			{
-				builder = builder
-					.SetBasePath(Directory.GetCurrentDirectory())
-					.AddJsonFile("appsettings.json", optional: false)
-					.AddInMemoryCollection(new Dictionary<string, string>
-					{
-						{"SecureSignWebConfigPath", Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")},
-					});
-			}
-			return builder.Build();
+			return new ConfigurationBuilder()
+				.AddSecureSignConfig()
+				.Build();
 		}
 
 		private readonly ISecretStorage _secretStorage;
