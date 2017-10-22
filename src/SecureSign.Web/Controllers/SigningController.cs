@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SecureSign.Core;
 using SecureSign.Core.Models;
@@ -27,19 +28,22 @@ namespace SecureSign.Web.Controllers
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAccessTokenSerializer _accessTokenSerializer;
 		private readonly IAuthenticodeSigner _signer;
+		private readonly ILogger<SigningController> _logger;
 		private readonly IDictionary<string, AccessTokenConfig> _accessTokenConfig;
 
 		public SigningController(
 			ISecretStorage secretStorage,
 			IAccessTokenSerializer accessTokenSerializer,
 			IAuthenticodeSigner signer,
-			IOptions<Dictionary<string, AccessTokenConfig>> accessTokenConfig
+			IOptions<Dictionary<string, AccessTokenConfig>> accessTokenConfig,
+			ILogger<SigningController> logger
 		)
 		{
 			_secretStorage = secretStorage;
 			_accessTokenConfig = accessTokenConfig.Value;
 			_accessTokenSerializer = accessTokenSerializer;
 			_signer = signer;
+			_logger = logger;
 		}
 
 		/// <summary>
@@ -57,13 +61,13 @@ namespace SecureSign.Web.Controllers
 			}
 			catch (Exception ex)
 			{
-				// TODO: log `ex`
+				_logger.LogInformation(ex, "Access token could not be decrypted");
 				return Unauthorized();
 			}
 
 			if (!_accessTokenConfig.TryGetValue(token.Id, out var tokenConfig) || !tokenConfig.Valid)
 			{
-				// TODO log this
+				_logger.LogWarning("Access token not in config file, or marked as invalid: {Id}", token.Id);
 				return Unauthorized();
 			}
 
