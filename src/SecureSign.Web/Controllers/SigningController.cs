@@ -6,8 +6,10 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SecureSign.Core;
 using SecureSign.Core.Models;
 using SecureSign.Core.Signers;
@@ -25,10 +27,17 @@ namespace SecureSign.Web.Controllers
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAccessTokenSerializer _accessTokenSerializer;
 		private readonly IAuthenticodeSigner _signer;
+		private readonly IDictionary<string, AccessTokenConfig> _accessTokenConfig;
 
-		public SigningController(ISecretStorage secretStorage, IAccessTokenSerializer accessTokenSerializer, IAuthenticodeSigner signer)
+		public SigningController(
+			ISecretStorage secretStorage,
+			IAccessTokenSerializer accessTokenSerializer,
+			IAuthenticodeSigner signer,
+			IOptions<Dictionary<string, AccessTokenConfig>> accessTokenConfig
+		)
 		{
 			_secretStorage = secretStorage;
+			_accessTokenConfig = accessTokenConfig.Value;
 			_accessTokenSerializer = accessTokenSerializer;
 			_signer = signer;
 		}
@@ -52,8 +61,14 @@ namespace SecureSign.Web.Controllers
 				return Unauthorized();
 			}
 
+			if (!_accessTokenConfig.TryGetValue(token.Id, out var tokenConfig) || !tokenConfig.Valid)
+			{
+				// TODO log this
+				return Unauthorized();
+			}
+
 			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-			var signed = await _signer.SignAsync(request.ArtifactUrl, cert, token.SignDescription, token.SignUrl);
+			var signed = await _signer.SignAsync(request.ArtifactUrl, cert, tokenConfig.SignDescription, tokenConfig.SignUrl);
 			return File(signed, "application/octet-stream");
 		}
 	}

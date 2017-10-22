@@ -6,6 +6,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +37,7 @@ namespace SecureSign.Core.Extensions
 
 			// Configuration
 		    services.Configure<PathConfig>(config.GetSection("Paths"));
+		    services.Configure<Dictionary<string, AccessTokenConfig>>(config.GetSection("AccessTokens"));
 
 			return services;
 	    }

@@ -13,6 +13,8 @@ namespace SecureSign.Core
 {
     public class AccessTokenSerializer : IAccessTokenSerializer
     {
+	    private const string ID_SEPARATOR = "-";
+
 	    private readonly IDataProtector _protector;
 
 	    public AccessTokenSerializer(IDataProtectionProvider provider)
@@ -27,7 +29,8 @@ namespace SecureSign.Core
 	    /// <returns>Encrypted access token</returns>
 		public string Serialize(AccessToken token)
 	    {
-		    return _protector.Protect(JsonConvert.SerializeObject(token));
+		    var encrypted = _protector.Protect(JsonConvert.SerializeObject(token));
+		    return token.Id + ID_SEPARATOR + encrypted;
 	    }
 
 	    /// <summary>
@@ -37,6 +40,9 @@ namespace SecureSign.Core
 	    /// <returns>Decrypted access token</returns>
 		public AccessToken Deserialize(string token)
 	    {
+			// Strip ID from the start
+		    var firstHyphen = token.IndexOf(ID_SEPARATOR);
+		    token = token.Substring(firstHyphen + 1);
 		    var raw = _protector.Unprotect(token);
 		    return JsonConvert.DeserializeObject<AccessToken>(raw);
 	    }

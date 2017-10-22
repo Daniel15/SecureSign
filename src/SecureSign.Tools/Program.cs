@@ -6,12 +6,16 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SecureSign.Core;
+using SecureSign.Core.Exceptions;
 using SecureSign.Core.Extensions;
 using SecureSign.Core.Models;
 
@@ -27,7 +31,7 @@ namespace SecureSign.Tools
 
 			var provider = services.BuildServiceProvider();
 			var program = ActivatorUtilities.CreateInstance<Program>(provider);
-			return program.Run(args);
+			return program.Run(args, config);
 		}
 
 		private static IConfiguration BuildConfig()
@@ -40,13 +44,21 @@ namespace SecureSign.Tools
 				builder = builder
 					.SetBasePath(Path.Combine(Directory.GetCurrentDirectory(), ".."))
 					.AddJsonFile("SecureSign.Tools/appsettings.json", optional: true)
-					.AddJsonFile("SecureSign.Web/appsettings.json", optional: false);
+					.AddJsonFile("SecureSign.Web/appsettings.json", optional: false)
+					.AddInMemoryCollection(new Dictionary<string, string>
+					{
+						{"SecureSignWebConfigPath", Path.Combine(Directory.GetCurrentDirectory(), "..", "SecureSign.Web/appsettings.json")},
+					});
 			}
 			else
 			{
 				builder = builder
 					.SetBasePath(Directory.GetCurrentDirectory())
-					.AddJsonFile("appsettings.json", optional: false);
+					.AddJsonFile("appsettings.json", optional: false)
+					.AddInMemoryCollection(new Dictionary<string, string>
+					{
+						{"SecureSignWebConfigPath", Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")},
+					});
 			}
 			return builder.Build();
 		}
@@ -54,6 +66,7 @@ namespace SecureSign.Tools
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAccessTokenSerializer _accessTokenSerializer;
 		private readonly IPasswordGenerator _passwordGenerator;
+		private IConfiguration _config;
 
 		public Program(ISecretStorage secretStorage, IAccessTokenSerializer accessTokenSerializer, IPasswordGenerator passwordGenerator)
 		{
@@ -62,8 +75,10 @@ namespace SecureSign.Tools
 			_passwordGenerator = passwordGenerator;
 		}
 
-		private int Run(string[] args)
+		private int Run(string[] args, IConfiguration config)
 		{
+			_config = config;
+
 			var app = new CommandLineApplication();
 			app.Name = "SecureSignTools";
 			app.HelpOption("-?|-h|--help");
@@ -143,20 +158,34 @@ namespace SecureSign.Tools
 					var desc = ConsoleUtils.Prompt("Description");
 					var url = ConsoleUtils.Prompt("Product/Application URL");
 
-					var accessToken = _accessTokenSerializer.Serialize(new AccessToken
+					var accessToken = new AccessToken
 					{
+						Id = Guid.NewGuid().ToShortGuid(),
 						Code = code,
-						Comment = comment,
 						IssuedAt = DateTime.Now,
 						KeyName = name,
+					};
+					var accessTokenConfig = new AccessTokenConfig
+					{
+						Comment = comment,
+						IssuedAt = accessToken.IssuedAt,
+						Valid = true,
 
-						SignUrl = url,
 						SignDescription = desc,
-					});
+						SignUrl = url,
+					};
+
+					// Save access token config to config file
+					var configPath = _config["SecureSignWebConfigPath"];
+					dynamic configFile = JObject.Parse(File.ReadAllText(configPath));
+					configFile.AccessTokens[accessToken.Id] = JToken.FromObject(accessTokenConfig);
+					File.WriteAllText(configPath, JsonConvert.SerializeObject(configFile, Formatting.Indented));
+
+					var encodedAccessToken = _accessTokenSerializer.Serialize(accessToken);
 
 					Console.WriteLine();
-					Console.WriteLine("Access token:");
-					Console.WriteLine(accessToken);
+					Console.WriteLine("Created new access token:");
+					Console.WriteLine(encodedAccessToken);
 					return 0;
 				});
 			});
@@ -168,7 +197,11 @@ namespace SecureSign.Tools
 			catch (Exception ex)
 			{
 				Console.Error.WriteLine("ERROR: " + ex.Message);
+#if DEBUG
+				throw;
+#else
 				return 1;
+#endif
 			}
 		}
 	}
