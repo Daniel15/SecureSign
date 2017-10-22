@@ -6,8 +6,10 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -80,7 +82,7 @@ namespace SecureSign.Core.Signers
 				}
 				else
 				{
-					throw new NotImplementedException();
+					return await SignUsingOpenSsl(inputFile, certFile, password, description, url);
 				}
 
 			}
@@ -101,24 +103,109 @@ namespace SecureSign.Core.Signers
 		/// <returns>A signed copy of the file</returns>
 		private async Task<byte[]> SignUsingSignToolAsync(string inputFile, string certFile, string certPassword, string description, string url)
 		{
+			await RunProcessAsync(
+				_pathConfig.SignTool,
+				new[]
+				{
+					"sign",
+					"/q",
+					$"/f \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+					$"/p \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
+					$"/d \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
+					$"/du \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
+					"/tr http://timestamp.digicert.com",
+					"/td sha256",
+					"/fd sha256",
+					$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+				}
+			);
+
+			// SignTool signs in-place, so just return the file we were given.
+			return File.ReadAllBytes(inputFile);
+		}
+
+		/// <summary>
+		/// Signs the specified file using osslsigncode
+		/// </summary>
+		/// <param name="inputFile">File to sign</param>
+		/// <param name="certFile">Path to the certificate to use for signing</param>
+		/// <param name="certPassword">Password for the certificate</param>
+		/// <param name="description">Description to sign the object with</param>
+		/// <param name="url">URL to include in the signature</param>
+		/// <returns>A signed copy of the file</returns>
+		private async Task<byte[]> SignUsingOpenSsl(string inputFile, string certFile, string certPassword,
+			string description, string url)
+		{
+			var outputFile = Path.GetTempFileName();
+
+			// Command-line arguments can be shown in the output of "ps". Therefore, we don't want to pass
+			// the certificate's password at the command-line. Instead, save it into a temp file that's
+			// deleted once the signing has been completed
+			var certPasswordFile = Path.GetTempFileName();
+
+			try
+			{
+				File.WriteAllText(certPasswordFile, certPassword);
+
+				// Windows 7 and 10 have deprecated SHA1 and require SHA256 or higher,
+				// however Vista and XP don't support SHA256. To fix this, we sign using
+				// *both* methods (dual signing).
+				// Reference: http://www.elstensoftware.com/blog/2016/02/10/dual-signing-osslsigncode/
+
+				// First sign with SHA1
+				await RunOsslSignCodeAsync(certFile, certPasswordFile, description, url, new[]
+				{
+					"-h sha1",
+					$"-in \"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
+				});
+
+				// Now sign with SHA256
+				await RunOsslSignCodeAsync(certFile, certPasswordFile, description, url, new[]
+				{
+					"-nest",
+					"-h sha2",
+					$"-in \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
+					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
+				});
+
+				return File.ReadAllBytes(outputFile);
+			}
+			finally
+			{
+				File.Delete(certPasswordFile);
+				File.Delete(outputFile);
+			}
+		}
+
+		private async Task RunOsslSignCodeAsync(string certFile, string certPasswordFile, string description, string url, string[] extraArgs)
+		{
+			var args = new List<string>
+			{
+				"sign",
+				"-ts http://timestamp.digicert.com",
+				$"-n \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
+				$"-i \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
+				$"-pkcs12 \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+				$"-readpass \"{CommandLineEncoder.Utils.EncodeArgText(certPasswordFile)}\""
+			};
+			await RunProcessAsync("osslsigncode", args.Concat(extraArgs).ToArray());
+		}
+
+		/// <summary>
+		/// Runs an external process and waits it to return.
+		/// </summary>
+		/// <param name="appName">Executeable to run</param>
+		/// <param name="args">Arguments to pass</param>
+		/// <exception cref="AuthenticodeFailedException">If a non-zero error code is returned</exception>
+		private async Task RunProcessAsync(string appName, params string[] args)
+		{
 			var process = new Process
 			{
 				StartInfo =
 				{
-					FileName = _pathConfig.SignTool,
-					Arguments = string.Join(" ", new[]
-					{
-						"sign",
-						"/q",
-						$"/f \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
-						$"/p \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
-						$"/d \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
-						$"/du \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
-						"/tr http://timestamp.digicert.com",
-						"/td sha256",
-						"/fd sha256",
-						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
-					}),
+					FileName = appName,
+					Arguments = string.Join(" ", args),
 					CreateNoWindow = true,
 					RedirectStandardError = true,
 					RedirectStandardOutput = true,
@@ -133,9 +220,6 @@ namespace SecureSign.Core.Signers
 				var errorOutput = await process.StandardError.ReadToEndAsync();
 				throw new AuthenticodeFailedException("Failed to Authenticode sign: " + errorOutput);
 			}
-
-			// SignTool signs in-place, so just return the file we were given.
-			return File.ReadAllBytes(inputFile);
 		}
 	}
 }
