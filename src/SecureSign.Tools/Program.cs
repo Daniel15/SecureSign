@@ -12,6 +12,7 @@ using System.Security.Cryptography.X509Certificates;
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SecureSign.Core;
@@ -30,7 +31,7 @@ namespace SecureSign.Tools
 
 			var provider = services.BuildServiceProvider();
 			var program = ActivatorUtilities.CreateInstance<Program>(provider);
-			return program.Run(args, config);
+			return program.Run(args);
 		}
 
 		private static IConfiguration BuildConfig()
@@ -43,19 +44,18 @@ namespace SecureSign.Tools
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAccessTokenSerializer _accessTokenSerializer;
 		private readonly IPasswordGenerator _passwordGenerator;
-		private IConfiguration _config;
+		private readonly PathConfig _pathConfig;
 
-		public Program(ISecretStorage secretStorage, IAccessTokenSerializer accessTokenSerializer, IPasswordGenerator passwordGenerator)
+		public Program(ISecretStorage secretStorage, IAccessTokenSerializer accessTokenSerializer, IPasswordGenerator passwordGenerator, IOptions<PathConfig> pathConfig)
 		{
 			_secretStorage = secretStorage;
 			_accessTokenSerializer = accessTokenSerializer;
 			_passwordGenerator = passwordGenerator;
+			_pathConfig = pathConfig.Value;
 		}
 
-		private int Run(string[] args, IConfiguration config)
+		private int Run(string[] args)
 		{
-			_config = config;
-
 			var app = new CommandLineApplication();
 			app.Name = "SecureSignTools";
 			app.HelpOption("-?|-h|--help");
@@ -152,11 +152,20 @@ namespace SecureSign.Tools
 						SignUrl = url,
 					};
 
+					
+					// If this is the first time an access token is being added, we need to create the config file
+					if (!File.Exists(_pathConfig.AccessTokenConfig))
+					{
+						File.WriteAllText(_pathConfig.AccessTokenConfig, JsonConvert.SerializeObject(new
+						{
+							AccessTokens = new Dictionary<string, AccessToken>()
+						}));
+					}
+
 					// Save access token config to config file
-					var configPath = _config["SecureSignWebConfigPath"];
-					dynamic configFile = JObject.Parse(File.ReadAllText(configPath));
+					dynamic configFile = JObject.Parse(File.ReadAllText(_pathConfig.AccessTokenConfig));
 					configFile.AccessTokens[accessToken.Id] = JToken.FromObject(accessTokenConfig);
-					File.WriteAllText(configPath, JsonConvert.SerializeObject(configFile, Formatting.Indented));
+					File.WriteAllText(_pathConfig.AccessTokenConfig, JsonConvert.SerializeObject(configFile, Formatting.Indented));
 
 					var encodedAccessToken = _accessTokenSerializer.Serialize(accessToken);
 

@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Configuration;
+using SecureSign.Core.Models;
 
 namespace SecureSign.Core.Extensions
 {
@@ -36,8 +37,8 @@ namespace SecureSign.Core.Extensions
 
 				.SetBasePath(rootPath)
 				// TODO: This should probably load `appsettings.{environment}.json too.
-				// TODO: Store access token info in separate file
 				.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+				.AddJsonFile(PathConfig.ACCESS_TOKEN_FILENAME, optional: true, reloadOnChange: true)
 
 				.AddEnvironmentVariables();
 		}
