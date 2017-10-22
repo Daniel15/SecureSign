@@ -25,7 +25,7 @@ namespace SecureSign.Web
 
 		public void ConfigureServices(IServiceCollection services)
         {
-			services.AddSecureSignCore();
+			services.AddSecureSignCore(Configuration);
 	        services.AddMvc();
 		}
 

@@ -12,7 +12,9 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using SecureSign.Core.Exceptions;
+using SecureSign.Core.Models;
 
 namespace SecureSign.Core.Signers
 {
@@ -25,14 +27,16 @@ namespace SecureSign.Core.Signers
 
 		private readonly IPasswordGenerator _passwordGenerator;
 		private readonly HttpClient _client = new HttpClient();
+		private readonly PathConfig _pathConfig;
 
 		/// <summary>
 		/// Creates a new <see cref="AuthenticodeSigner"/>.
 		/// </summary>
 		/// <param name="passwordGenerator"></param>
-		public AuthenticodeSigner(IPasswordGenerator passwordGenerator)
+		public AuthenticodeSigner(IPasswordGenerator passwordGenerator, IOptions<PathConfig> pathConfig)
 		{
 			_passwordGenerator = passwordGenerator;
+			_pathConfig = pathConfig.Value;
 		}
 
 		/// <summary>
@@ -101,8 +105,7 @@ namespace SecureSign.Core.Signers
 			{
 				StartInfo =
 				{
-					// TODO: This path shouldn't be hard-coded
-					FileName = @"C:\Program Files (x86)\Windows Kits\8.1\bin\x86\signtool.exe",
+					FileName = _pathConfig.SignTool,
 					Arguments = string.Join(" ", new[]
 					{
 						"sign",

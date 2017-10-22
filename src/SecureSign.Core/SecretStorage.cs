@@ -8,6 +8,8 @@
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Options;
+using SecureSign.Core.Models;
 
 namespace SecureSign.Core
 {
@@ -16,17 +18,18 @@ namespace SecureSign.Core
 	/// </summary>
 	public class SecretStorage : ISecretStorage
     {
-		private const string STORAGE_PATH = @"C:\src\SecureSign\storage"; // TODO make configurable
 	    private readonly IDataProtector _protector;
+	    private readonly PathConfig _pathConfig;
 
-		/// <summary>
+	    /// <summary>
 		/// Creates a new <see cref="SecretStorage"/>, using the specified <see cref="IDataProtectionProvider"/> 
 		/// to encrypt the secret files.
 		/// </summary>
 		/// <param name="provider">Provider to encrypt the secrets</param>
-	    public SecretStorage(IDataProtectionProvider provider)
+	    public SecretStorage(IDataProtectionProvider provider, IOptions<PathConfig> pathConfig)
 		{
 			_protector = provider.CreateProtector("SecureSign.SecretStorage");
+			_pathConfig = pathConfig.Value;
 		}
 
 	    /// <summary>
@@ -87,7 +90,7 @@ namespace SecureSign.Core
 	    /// <returns>Full file path for the secret file</returns>
 		public string GetPathForSecret(string name)
 	    {
-		    return Path.Combine(STORAGE_PATH, name);
+		    return Path.Combine(_pathConfig.Certificates, name);
 	    }
 
 		/// <summary>
