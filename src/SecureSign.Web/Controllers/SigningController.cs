@@ -8,7 +8,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -75,7 +77,17 @@ namespace SecureSign.Web.Controllers
 			}
 
 			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-			var artifact = await GetFileFromPayloadAsync(token, tokenConfig, request);
+			byte[] artifact;
+			try
+			{
+				artifact = await GetFileFromPayloadAsync(token, tokenConfig, request);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Could not retrieve artifact to sign");
+				return BadRequest(ex.Message);
+			}
+			
 			var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl);
 			return File(signed, "application/octet-stream");
 		}
@@ -89,6 +101,10 @@ namespace SecureSign.Web.Controllers
 		/// <returns>The file contents</returns>
 		private async Task<byte[]> GetFileFromPayloadAsync(AccessToken token, AccessTokenConfig tokenConfig, AuthenticodeSignRequest request)
 		{
+			if (!CheckIfRequestIsWhitelisted(token, tokenConfig, request))
+			{
+				throw new InvalidOperationException("Upload request is not allowed.");
+			}
 			if (request.ArtifactUrl != null)
 			{
 				_logger.LogInformation("Signing request received: {Id} is signing {ArtifactUrl}", token.Id, request.ArtifactUrl);
@@ -107,6 +123,30 @@ namespace SecureSign.Web.Controllers
 
 			// TODO: This should likely throw instead
 			return new byte[0];
+		}
+
+		private bool CheckIfRequestIsWhitelisted(AccessToken token, AccessTokenConfig tokenConfig, AuthenticodeSignRequest request)
+		{
+			if (
+				request.ArtifactUrl != null &&
+				tokenConfig.AllowedUrls != null &&
+				!tokenConfig.AllowedUrls.Any(item =>
+					Regex.IsMatch(request.ArtifactUrl.Host, item.Domain) &&
+					Regex.IsMatch(request.ArtifactUrl.AbsolutePath, item.Path)
+				)
+			)
+			{
+				_logger.LogWarning("[{Id}] URL signing requested, but url {Url} is not on the whitelist!", token.Id, request.ArtifactUrl);
+				return false;
+			}
+
+			if (request.Artifact != null && !tokenConfig.AllowUploads)
+			{
+				_logger.LogWarning("[{Id}] File uploaded, but access token is forbidden from doing so!", token.Id);
+				return false;
+			}
+
+			return true;
 		}
 	}
 }

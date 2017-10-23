@@ -6,6 +6,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 
 namespace SecureSign.Core.Models
 {
@@ -39,5 +40,15 @@ namespace SecureSign.Core.Models
 		/// Description to include in Authenticode metadata for signing requests performed with this access token
 		/// </summary>
 		public string SignDescription { get; set; }
+
+		/// <summary>
+		/// Gets or sets whether direct file uploads are allowed
+		/// </summary>
+		public bool AllowUploads { get; set; } = true;
+
+		/// <summary>
+		/// Gets or sets the list of URLs allowed to be signed by this access token
+		/// </summary>
+		public IList<AllowedUrlConfig> AllowedUrls { get; set; }
 	}
 }

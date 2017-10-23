@@ -5,8 +5,8 @@ SecureSign is a simple code signing server. It is designed to allow Authenticode
 
 Features
 ========
- - **Isolation**: Each unique call site has its own access token for the service. An access token only provides access to a single signing key.
- - **Encryption**: Private keys are encrypted at rest, using an encryption key that is not stored on the server. The encryption key is encoded into the access token.
+ - **Isolation**: Each unique call site has its own access token for the service. An access token only provides access to a single signing key, and can be restricted to only sign particular content.
+ - **Encryption**: Private keys are encrypted at rest, using an encryption key that is not stored on the server. The encryption key is encoded into the access token, so the private key can not be decrypted without the access token.
  - **Cross-platform**: Supported on Windows and Linux, may run on other operating systems too.
 
 Prerequisites
@@ -17,7 +17,7 @@ Prerequisites
 
 Usage
 =====
-Add your private signing key as a `.pfx` file, using the `addkey` command. This will provide you with a secret code:
+Before using SecureSign, you need to add your private signing keys. Ensure you have the key as a `.pfx` file, and then use the `addkey` command:
 
 ```
 $ dotnet SecureSign.Tools.dll addkey /tmp/my_key.pfx
@@ -78,3 +78,24 @@ curl --show-error --fail \
   -o latest-signed.msi \
   http://localhost:5000/sign/authenticode
 ```
+
+Restricting Usage of Access Tokens
+----------------------------------
+
+By default, an access token can be used to sign **any** file, either via upload or from **any** URL. To lock this down, you can modify `accessTokenConfig.json`. For example, to only allow `msi` files from `nightly.yarnpkg.com` to be signed, you can set `AllowUploads` to `false` and add the whitelist to `AllowedUrls`:
+```
+{
+  "AccessTokens": {
+    "zGZEtxVisE2rqSf71SVqNg": {
+      "AllowUploads": false,
+      "AllowedUrls": [
+      {
+        "Domain": "^nightly.yarnpkg.com$",
+        "Path": "^/(.+)\.msi$"
+      }
+    ]
+  }
+}
+```
+
+Each item in the `AllowedUrls` array contains regular expressions to check the `Domain` and `Path` of the URL. The request will be allowed if any of the allowed URL patterns match.
