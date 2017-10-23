@@ -59,11 +59,22 @@ Now listening on: http://[::]:5000
 Application started. Press Ctrl+C to shut down.
 ```
 
-To sign a file, send a POST request to `/sign/authenticode`, containing the access token as well as a URL to a file to sign:
+To sign a file, send a POST request to `/sign/authenticode`. This can  contain a URL to the artifact to sign:
 ```
-curl
-  -H "Content-Type: application/json"
-  -X POST
-  -d '{"accessToken": "zGZEtxVis...", "artifactUrl": "https://build.example.com/latest.msi"}'
-  http://localhost:5000/sign/authenticode > latest-signed.msi
+curl --show-error --fail \
+  -X POST \
+  -F 'accessToken=zGZEtxVis...' \
+  -F 'artifactUrl=https://build.example.com/latest.msi' \
+  -o latest-signed.msi \
+  http://localhost:5000/sign/authenticode
+```
+
+Alternatively, it could contain the actual artifact itself:
+```
+curl --show-error --fail \
+  -X POST \
+  -F 'accessToken=zGZEtxVis...' \
+  -F 'artifact=@latest.msi' \
+  -o latest-signed.msi \
+  http://localhost:5000/sign/authenticode
 ```

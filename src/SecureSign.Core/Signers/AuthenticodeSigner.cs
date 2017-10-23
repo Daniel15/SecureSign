@@ -5,12 +5,10 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
@@ -28,7 +26,6 @@ namespace SecureSign.Core.Signers
 		private const int TIMEOUT = 10000;
 
 		private readonly IPasswordGenerator _passwordGenerator;
-		private readonly HttpClient _client = new HttpClient();
 		private readonly PathConfig _pathConfig;
 
 		/// <summary>
@@ -39,20 +36,6 @@ namespace SecureSign.Core.Signers
 		{
 			_passwordGenerator = passwordGenerator;
 			_pathConfig = pathConfig.Value;
-		}
-
-		/// <summary>
-		/// Signs the resource located at the specified URI with an Authenticode signature.
-		/// </summary>
-		/// <param name="artifactUri">URI of the object to sign</param>
-		/// <param name="cert">Certificate to use for signing</param>
-		/// <param name="description">Description to sign the object with</param>
-		/// <param name="url">URL to include in the signature</param>
-		/// <returns>A signed copy of the file</returns>
-		public async Task<byte[]> SignAsync(Uri artifactUri, X509Certificate2 cert, string description, string url)
-		{
-			var artifact = await _client.GetByteArrayAsync(artifactUri);
-			return await SignAsync(artifact, cert, description, url);
 		}
 
 		/// <summary>

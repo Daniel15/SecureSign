@@ -6,6 +6,7 @@
  */
 
 using System;
+using Microsoft.AspNetCore.Http;
 
 namespace SecureSign.Web.Models
 {
@@ -23,5 +24,10 @@ namespace SecureSign.Web.Models
 		/// Gets or sets the URL of the file to download and sign
 		/// </summary>
 		public Uri ArtifactUrl { get; set; }
+
+		/// <summary>
+		/// Gets or sets the uploaded file to sign. Only used if <see cref="ArtifactUrl"/> is not provided
+		/// </summary>
+		public IFormFile Artifact { get; set; }
     }
 }

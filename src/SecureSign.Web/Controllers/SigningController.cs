@@ -7,6 +7,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -30,6 +32,7 @@ namespace SecureSign.Web.Controllers
 		private readonly IAuthenticodeSigner _signer;
 		private readonly ILogger<SigningController> _logger;
 		private readonly IDictionary<string, AccessTokenConfig> _accessTokenConfig;
+		private readonly HttpClient _httpClient = new HttpClient();
 
 		public SigningController(
 			ISecretStorage secretStorage,
@@ -52,7 +55,7 @@ namespace SecureSign.Web.Controllers
 		/// <param name="request">Details of the request</param>
 		/// <returns>Authenticode-signed file</returns>
 		[Route("authenticode")]
-		public async Task<IActionResult> SignUsingAuthenticode([FromBody] AuthenticodeSignRequest request)
+		public async Task<IActionResult> SignUsingAuthenticode(AuthenticodeSignRequest request)
 		{
 			AccessToken token;
 			try
@@ -72,8 +75,38 @@ namespace SecureSign.Web.Controllers
 			}
 
 			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-			var signed = await _signer.SignAsync(request.ArtifactUrl, cert, tokenConfig.SignDescription, tokenConfig.SignUrl);
+			var artifact = await GetFileFromPayloadAsync(token, tokenConfig, request);
+			var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl);
 			return File(signed, "application/octet-stream");
+		}
+
+		/// <summary>
+		/// Gets the file to sign from the request payload.
+		/// </summary>
+		/// <param name="token">Access token for the request</param>
+		/// <param name="tokenConfig">Configuration for this access token</param>
+		/// <param name="request">The request</param>
+		/// <returns>The file contents</returns>
+		private async Task<byte[]> GetFileFromPayloadAsync(AccessToken token, AccessTokenConfig tokenConfig, AuthenticodeSignRequest request)
+		{
+			if (request.ArtifactUrl != null)
+			{
+				_logger.LogInformation("Signing request received: {Id} is signing {ArtifactUrl}", token.Id, request.ArtifactUrl);
+				return await _httpClient.GetByteArrayAsync(request.ArtifactUrl);
+			}
+
+			if (request.Artifact != null)
+			{
+				_logger.LogInformation("Signing request received: {Id} is signing {Filename}", token.Id, request.Artifact.FileName);
+				using (var stream = new MemoryStream())
+				{
+					await request.Artifact.CopyToAsync(stream);
+					return stream.ToArray();
+				}
+			}
+
+			// TODO: This should likely throw instead
+			return new byte[0];
 		}
 	}
 }
