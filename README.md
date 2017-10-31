@@ -79,6 +79,13 @@ curl --show-error --fail \
   http://localhost:5000/sign/authenticode
 ```
 
+HTTPS
+-----
+To use TLS, first obtain a certificate in .pfx format. Then, pass in the certificate file name and password as environment variables:
+```
+$ ASPNETCORE_ENVIRONMENT=Production LISTEN_IP=* HTTPS_PORT=12345 HTTPS_CERT=test.pfx HTTPS_CERT_PASSWORD=password1 dotnet SecureSign.Web.dll
+```
+
 Restricting Usage of Access Tokens
 ----------------------------------
 
