@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{B91FF362-B
 	ProjectSection(SolutionItems) = preProject
 		..\.gitignore = ..\.gitignore
 		..\appsettings.json = ..\appsettings.json
+		..\publish.sh = ..\publish.sh
+		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Global
