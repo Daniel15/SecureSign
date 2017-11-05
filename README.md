@@ -106,3 +106,17 @@ By default, an access token can be used to sign **any** file, either via upload 
 ```
 
 Each item in the `AllowedUrls` array contains regular expressions to check the `Domain` and `Path` of the URL. The request will be allowed if any of the allowed URL patterns match.
+
+Location of Encryption Keys and Certificates
+--------------------------------------------
+
+By default, SecureSign's encryption keys are stored in a `keys` directory, and certificates are stored in a `secrets` directory. You can change these directories (for example, to use a directory that's encrypted at rest) by setting the `Paths` settings in `appconfig.json`:
+
+```json
+{
+  "Paths": {
+    "EncryptionKeys": "/var/local/private/securesign-keys/",
+    "Certificates": "/var/local/private/securesign-certs/"
+  }
+}
+```
