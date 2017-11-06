@@ -6,6 +6,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Net;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
@@ -24,7 +25,13 @@ namespace SecureSign.Web
 		public static IWebHost BuildWebHost(string[] args) =>
 			WebHost.CreateDefaultBuilder(args)
 				.ConfigureAppConfiguration(builder => builder.AddSecureSignConfig())
-				.ConfigureLogging(builder => builder.AddFile("logs/{Date}.txt"))
+				.ConfigureLogging(builder => builder.AddFile(
+					pathFormat: "logs/{Date}.txt",
+					levelOverrides: new Dictionary<string, LogLevel>
+					{
+						{"Microsoft", LogLevel.Warning}
+					}
+				))
 				.UseStartup<Startup>()
 				.UseKestrel(options =>
 				{
