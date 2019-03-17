@@ -29,9 +29,9 @@ namespace SecureSign.Tools.KeyHandlers
 		}
 
 		/// <summary>
-		/// Gets the file extension this key handler supports
+		/// Gets the key type that this key handler supports
 		/// </summary>
-		public string FileExtension => ".pfx";
+		public KeyType KeyType => KeyType.Authenticode;
 
 		/// <summary>
 		/// Adds a new key to the secret storage.

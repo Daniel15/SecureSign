@@ -34,9 +34,9 @@ namespace SecureSign.Tools.KeyHandlers
 		}
 
 		/// <summary>
-		/// Gets the file extension this key handler supports
+		/// Gets the key type that this key handler supports
 		/// </summary>
-		public string FileExtension => ".gpg";
+		public KeyType KeyType => KeyType.Gpg;
 
 		/// <summary>
 		/// Adds a new key to the secret storage.

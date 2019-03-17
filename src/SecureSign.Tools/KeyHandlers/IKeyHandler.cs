@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
+using SecureSign.Core;
 using SecureSign.Core.Models;
 
 namespace SecureSign.Tools.KeyHandlers
@@ -15,9 +16,9 @@ namespace SecureSign.Tools.KeyHandlers
 	public interface IKeyHandler
 	{
 		/// <summary>
-		/// Gets the file extension this key handler supports
+		/// Gets the key type that this key handler supports
 		/// </summary>
-		string FileExtension { get; }
+		KeyType KeyType { get; }
 
 		/// <summary>
 		/// Adds a new key to the secret storage.

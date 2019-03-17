@@ -6,7 +6,6 @@
  */
 
 using System;
-using System.IO;
 using System.Linq;
 using Libgpgme;
 using Microsoft.AspNetCore.Mvc;
@@ -53,10 +52,9 @@ namespace SecureSign.Web.Controllers
 				return Unauthorized();
 			}
 
-			// TODO: This should use factory pattern, like IKeyHandler
-			switch (Path.GetExtension(token.KeyName))
+			switch (KeyTypeUtils.FromFilename(token.KeyName))
 			{
-				case ".pfx":
+				case KeyType.Authenticode:
 					var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
 					return Ok(new CertificateStatusResponse
 					{
@@ -69,7 +67,7 @@ namespace SecureSign.Web.Controllers
 						Thumbprint = cert.Thumbprint,
 					});
 
-				case ".gpg":
+				case KeyType.Gpg:
 					var key = _ctx.KeyStore.GetKey(token.KeyFingerprint, secretOnly: false);
 					var subkey = key.Subkeys.First(x => x.KeyId == token.KeyFingerprint);
 					return Ok(new CertificateStatusResponse
