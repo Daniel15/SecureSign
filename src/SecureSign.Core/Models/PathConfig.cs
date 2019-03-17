@@ -40,6 +40,11 @@ namespace SecureSign.Core.Models
 		public string AccessTokenConfig => Path.Combine(Root, ACCESS_TOKEN_FILENAME);
 
 		/// <summary>
+		/// Gets the full path to SecureSign's GnuPG home directory
+		/// </summary>
+		public string GpgHome => Path.Combine(Root, ".gnupg");
+
+		/// <summary>
 		/// Gets or sets the path to signtool.exe
 		/// </summary>
 	    public string SignTool { get; set; } = @"C:\Program Files (x86)\Windows Kits\8.1\bin\x86\signtool.exe";
