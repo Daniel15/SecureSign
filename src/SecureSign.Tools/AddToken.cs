@@ -8,13 +8,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Libgpgme;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SecureSign.Core;
-using SecureSign.Core.Extensions;
 using SecureSign.Core.Models;
+using SecureSign.Tools.KeyHandlers;
 
 namespace SecureSign.Tools
 {
@@ -25,19 +24,19 @@ namespace SecureSign.Tools
 	{
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAccessTokenSerializer _accessTokenSerializer;
-		private readonly Context _gpgContext;
+		private readonly IKeyHandlerFactory _keyHandlerFactory;
 		private readonly PathConfig _pathConfig;
 
 		public AddToken(
 			ISecretStorage secretStorage, 
 			IAccessTokenSerializer accessTokenSerializer, 
 			IOptions<PathConfig> pathConfig,
-			Context gpgContext
+			IKeyHandlerFactory keyHandlerFactory
 		)
 		{
 			_secretStorage = secretStorage;
 			_accessTokenSerializer = accessTokenSerializer;
-			_gpgContext = gpgContext;
+			_keyHandlerFactory = keyHandlerFactory;
 			_pathConfig = pathConfig.Value;
 		}
 
@@ -57,104 +56,13 @@ namespace SecureSign.Tools
 				return 1;
 			}
 
-			AccessToken accessToken;
-			AccessTokenConfig accessTokenConfig;
-			switch (Path.GetExtension(name))
-			{
-				case ".pfx":
-					(accessToken, accessTokenConfig) = CreateTokenForAuthenticode(code, name);
-					break;
-
-				case ".gpg":
-					(accessToken, accessTokenConfig) = CreateTokenForGpg(code, name);
-					break;
-
-				default:
-					throw new Exception("Unrecognised file extension.");
-			}
-
-
-
+			var handler = _keyHandlerFactory.GetHandler(name);
+			var (accessToken, accessTokenConfig) = handler.CreateAccessToken(code, name);
 			var encodedAccessToken = SaveAccessToken(accessToken, accessTokenConfig);
 			Console.WriteLine();
 			Console.WriteLine("Created new access token:");
 			Console.WriteLine(encodedAccessToken);
 			return 0;
-		}
-
-		/// <summary>
-		/// Creates an access token for an Authenticode signing key
-		/// </summary>
-		/// <param name="code">Decryption code for key</param>
-		/// <param name="name">Name of the key</param>
-		/// <returns>Access token and its config</returns>
-		private (AccessToken accessToken, AccessTokenConfig accessTokenConfig) CreateTokenForAuthenticode(
-			string code,
-			string name
-		)
-		{
-			var comment = ConsoleUtils.Prompt("Comment (optional)");
-
-			Console.WriteLine();
-			Console.WriteLine("Signing settings:");
-			var desc = ConsoleUtils.Prompt("Description");
-			var url = ConsoleUtils.Prompt("Product/Application URL");
-
-			var accessToken = new AccessToken
-			{
-				Id = Guid.NewGuid().ToShortGuid(),
-				Code = code,
-				IssuedAt = DateTime.Now,
-				KeyName = name,
-			};
-			var accessTokenConfig = new AccessTokenConfig
-			{
-				Comment = comment,
-				IssuedAt = accessToken.IssuedAt,
-				Valid = true,
-
-				SignDescription = desc,
-				SignUrl = url,
-			};
-			return (accessToken, accessTokenConfig);
-		}
-
-		/// <summary>
-		/// Creates an access token for a GPG signing key
-		/// </summary>
-		/// <param name="code">Decryption code for key</param>
-		/// <param name="name">Name of the key</param>
-		/// <returns>Access token and its config</returns>
-		private (AccessToken accessToken, AccessTokenConfig accessTokenConfig) CreateTokenForGpg(
-			string code,
-			string name
-		)
-		{
-			var fingerprint = ConsoleUtils.Prompt("Key ID");
-			// Validate keyId is legit
-			var key = _gpgContext.KeyStore.GetKey(fingerprint, secretOnly: false);
-			if (key == null)
-			{
-				throw new Exception($"Invalid key ID: {fingerprint}");
-			}
-			
-			var comment = ConsoleUtils.Prompt("Comment (optional)");
-
-			var accessToken = new AccessToken
-			{
-				Id = Guid.NewGuid().ToShortGuid(),
-				Code = code,
-				IssuedAt = DateTime.Now,
-				KeyFingerprint = fingerprint,
-				KeyName = name,
-			};
-			var accessTokenConfig = new AccessTokenConfig
-			{
-				Comment = comment,
-				IssuedAt = accessToken.IssuedAt,
-				Valid = true,
-			};
-			return (accessToken, accessTokenConfig);
 		}
 
 		/// <summary>

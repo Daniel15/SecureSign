@@ -6,13 +6,12 @@
  */
 
 using System;
+using System.IO;
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using SecureSign.Core;
 using SecureSign.Core.Extensions;
-using SecureSign.Core.Models;
+using SecureSign.Tools.KeyHandlers;
 
 namespace SecureSign.Tools
 {
@@ -23,6 +22,9 @@ namespace SecureSign.Tools
 			var config = BuildConfig();
 			var services = new ServiceCollection();
 			services.AddSecureSignCore(config);
+			services.AddScoped<IKeyHandler, AuthenticodeKeyHandler>();
+			services.AddScoped<IKeyHandler, GpgKeyHandler>();
+			services.AddScoped<IKeyHandlerFactory, KeyHandlerFactory>();
 
 			var provider = services.BuildServiceProvider();
 			var program = ActivatorUtilities.CreateInstance<Program>(provider);
@@ -36,17 +38,13 @@ namespace SecureSign.Tools
 				.Build();
 		}
 
-		private readonly ISecretStorage _secretStorage;
-		private readonly IAccessTokenSerializer _accessTokenSerializer;
+		private readonly IKeyHandlerFactory _keyHandlerFactory;
 		private readonly IServiceProvider _provider;
-		private readonly PathConfig _pathConfig;
 
-		public Program(ISecretStorage secretStorage, IAccessTokenSerializer accessTokenSerializer, IOptions<PathConfig> pathConfig, IServiceProvider provider)
+		public Program(IKeyHandlerFactory keyHandlerFactory, IServiceProvider provider)
 		{
-			_secretStorage = secretStorage;
-			_accessTokenSerializer = accessTokenSerializer;
+			_keyHandlerFactory = keyHandlerFactory;
 			_provider = provider;
-			_pathConfig = pathConfig.Value;
 		}
 
 		private int Run(string[] args)
@@ -68,7 +66,19 @@ namespace SecureSign.Tools
 						Console.WriteLine("Please include the file name to add");
 						return 1;
 					}
-					ActivatorUtilities.CreateInstance<AddKey>(_provider).Run(inputPath);
+
+					if (!File.Exists(inputPath))
+					{
+						throw new Exception("File does not exist: " + inputPath);
+					}
+
+					var handler = _keyHandlerFactory.GetHandler(inputPath);
+					handler.AddKey(inputPath);
+
+					Console.WriteLine();
+					Console.WriteLine("This secret code is required whenever you create an access token that uses this key.");
+					Console.WriteLine("Store this secret code in a SECURE PLACE! The code is not stored anywhere, ");
+					Console.WriteLine("so if you lose it, you will need to re-install the key.");
 					Console.ReadKey();
 					return 0;
 				});

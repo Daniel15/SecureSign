@@ -53,5 +53,11 @@ namespace SecureSign.Core
 		/// <param name="name">Name of the secret file</param>
 		/// <returns>Full file path for the secret file</returns>
 		string GetPathForSecret(string name);
+
+		/// <summary>
+		/// Throws an exception if a secret with the specified name already exists.
+		/// </summary>
+		/// <param name="name">Name of the secret file</param>
+		void ThrowIfSecretExists(string name);
 	}
 }

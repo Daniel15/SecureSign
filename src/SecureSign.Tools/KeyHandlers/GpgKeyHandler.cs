@@ -9,89 +9,40 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Libgpgme;
 using SecureSign.Core;
+using SecureSign.Core.Extensions;
+using SecureSign.Core.Models;
 
-namespace SecureSign.Tools
+namespace SecureSign.Tools.KeyHandlers
 {
 	/// <summary>
-	/// Handles adding new keys
+	/// Handles storing and creating access tokens for GPG keys
 	/// </summary>
-	public class AddKey
+	class GpgKeyHandler : IKeyHandler
 	{
 		private readonly ISecretStorage _secretStorage;
 		private readonly IPasswordGenerator _passwordGenerator;
-		private readonly Context _gpgContext;
+		private readonly Context _ctx;
 
-		public AddKey(
-			ISecretStorage secretStorage, 
-			IPasswordGenerator passwordGenerator, 
-			Context gpgContext
-		)
+		public GpgKeyHandler(ISecretStorage secretStorage, IPasswordGenerator passwordGenerator, Context ctx)
 		{
 			_secretStorage = secretStorage;
 			_passwordGenerator = passwordGenerator;
-			_gpgContext = gpgContext;
+			_ctx = ctx;
 		}
 
-		public void Run(string inputPath)
-		{
-			// Ensure input file exists
-			if (!File.Exists(inputPath))
-			{
-				throw new Exception("File does not exist: " + inputPath);
-			}
+		/// <summary>
+		/// Gets the file extension this key handler supports
+		/// </summary>
+		public string FileExtension => ".gpg";
 
-			Add(inputPath);
-			Console.WriteLine();
-			Console.WriteLine("This secret code is required whenever you create an access token that uses this key.");
-			Console.WriteLine("Store this secret code in a SECURE PLACE! The code is not stored anywhere, ");
-			Console.WriteLine("so if you lose it, you will need to re-install the key.");
-		}
-
-		private void Add(string inputPath)
-		{
-			var fileName = Path.GetFileName(inputPath);
-			switch (Path.GetExtension(fileName))
-			{
-				case ".pfx":
-					AddAuthenticode(inputPath);
-					break;
-
-				case ".gpg":
-					AddGpg(inputPath);
-					break;
-
-				default:
-					throw new Exception(
-						"Unrecognised file extension. Please use .pfx for Authenticode or .gpg for GPG."
-					);
-			}
-		}
-
-		private void AddAuthenticode(string inputPath)
-		{
-			// Ensure output file does not exist
-			var fileName = Path.GetFileName(inputPath);
-			ThrowIfSecretExists(fileName);
-
-			var password = ConsoleUtils.PasswordPrompt("Password");
-			var cert = new X509Certificate2(File.ReadAllBytes(inputPath), password, X509KeyStorageFlags.Exportable);
-
-			var code = _passwordGenerator.Generate();
-			_secretStorage.SaveSecret(fileName, cert, code);
-			Console.WriteLine();
-			Console.WriteLine($"Saved {fileName} ({cert.FriendlyName})");
-			Console.WriteLine($"Subject: {cert.SubjectName.Format(false)}");
-			Console.WriteLine($"Issuer: {cert.IssuerName.Format(false)}");
-			Console.WriteLine($"Valid from {cert.NotBefore} until {cert.NotAfter}");
-			Console.WriteLine();
-			Console.WriteLine($"Secret Code: {code}");
-		}
-
-		private void AddGpg(string inputPath)
+		/// <summary>
+		/// Adds a new key to the secret storage.
+		/// </summary>
+		/// <param name="inputPath"></param>
+		public void AddKey(string inputPath)
 		{
 			// Create a temporary directory to hold the GPG key while we verify that it's legit
 			var tempHomedir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
@@ -109,7 +60,7 @@ namespace SecureSign.Tools
 					{
 						result = tempCtx.KeyStore.Import(keyfile);
 					}
-						
+
 					if (result == null || result.Imported == 0 || result.SecretImported == 0 || result.Imports == null)
 					{
 						throw new Exception("No secret keys found!");
@@ -132,10 +83,16 @@ namespace SecureSign.Tools
 			}
 		}
 
+		/// <summary>
+		/// Gets all the keys with the specified fingerprints, and verifies that they can be used for signing
+		/// </summary>
+		/// <param name="fingerprints">Fingerprints of the keys</param>
+		/// <param name="ctx">GPGME context to use</param>
+		/// <returns>List of all the keys</returns>
 		private static List<Key> GetAndVerifyKeys(IEnumerable<string> fingerprints, Context ctx)
 		{
 			// Ensure all keys work by signing a message with them
-			var original = new GpgmeMemoryData {FileName = "original.txt"};
+			var original = new GpgmeMemoryData { FileName = "original.txt" };
 			var writer = new BinaryWriter(original, Encoding.UTF8);
 			writer.Write("Hello World!");
 
@@ -143,7 +100,7 @@ namespace SecureSign.Tools
 
 			foreach (var fingerprint in fingerprints)
 			{
-				var output = new GpgmeMemoryData {FileName = "original.txt.gpg"};
+				var output = new GpgmeMemoryData { FileName = "original.txt.gpg" };
 				var key = ctx.KeyStore.GetKey(fingerprint, true);
 				ctx.Signers.Clear();
 				ctx.Signers.Add(key);
@@ -178,6 +135,12 @@ namespace SecureSign.Tools
 			return keys;
 		}
 
+		/// <summary>
+		/// Imports the specified keys from the temporary storage, and encrypts them.
+		/// Outputs details to the console.
+		/// </summary>
+		/// <param name="keys">Keys to import</param>
+		/// <param name="tempHomedir">Temporary GPG homedir</param>
 		private void ImportAndEncryptSecretGpgKeys(IEnumerable<Key> keys, string tempHomedir)
 		{
 			foreach (var key in keys)
@@ -204,6 +167,11 @@ namespace SecureSign.Tools
 			}
 		}
 
+		/// <summary>
+		/// Imports the public GPG keys into the local GPG home directory
+		/// </summary>
+		/// <param name="keys">Keys to import</param>
+		/// <param name="tempCtx">Temporary GPGME context</param>
 		private void ImportPublicGpgKeys(IEnumerable<Key> keys, Context tempCtx)
 		{
 			foreach (var key in keys)
@@ -215,7 +183,7 @@ namespace SecureSign.Tools
 					tempCtx.KeyStore.Export(key.KeyId, tempFile);
 					using (var tempFileData = new GpgmeFileData(tempFile))
 					{
-						_gpgContext.KeyStore.Import(tempFileData);
+						_ctx.KeyStore.Import(tempFileData);
 					}
 				}
 				finally
@@ -225,24 +193,57 @@ namespace SecureSign.Tools
 			}
 		}
 
+		/// <summary>
+		/// Throws an exception if any of the specified keys already exist in the secret storage
+		/// </summary>
+		/// <param name="keys">Keys to check</param>
 		private void EnsureGpgKeysDoNotExist(List<Key> keys)
 		{
 			foreach (var key in keys)
 			{
 				foreach (var subkey in key.Subkeys)
 				{
-					ThrowIfSecretExists(subkey.Keygrip + ".key");
+					_secretStorage.ThrowIfSecretExists(subkey.Keygrip + ".gpg");
 				}
 			}
 		}
 
-		private void ThrowIfSecretExists(string fileName)
+		/// <summary>
+		/// Creates a new access token to use the specified key
+		/// </summary>
+		/// <param name="code">Encryption code for the key</param>
+		/// <param name="name">Name of the key</param>
+		/// <returns>Access token and its config</returns>
+		public (AccessToken accessToken, AccessTokenConfig accessTokenConfig) CreateAccessToken(
+			string code, 
+			string name
+		)
 		{
-			var outputPath = _secretStorage.GetPathForSecret(fileName);
-			if (File.Exists(outputPath))
+			var fingerprint = ConsoleUtils.Prompt("Key ID");
+			// Validate keyId is legit
+			var key = _ctx.KeyStore.GetKey(fingerprint, secretOnly: false);
+			if (key == null)
 			{
-				throw new Exception(outputPath + " already exists! I'm not going to overwrite it.");
+				throw new Exception($"Invalid key ID: {fingerprint}");
 			}
+
+			var comment = ConsoleUtils.Prompt("Comment (optional)");
+
+			var accessToken = new AccessToken
+			{
+				Id = Guid.NewGuid().ToShortGuid(),
+				Code = code,
+				IssuedAt = DateTime.Now,
+				KeyFingerprint = fingerprint,
+				KeyName = name,
+			};
+			var accessTokenConfig = new AccessTokenConfig
+			{
+				Comment = comment,
+				IssuedAt = accessToken.IssuedAt,
+				Valid = true,
+			};
+			return (accessToken, accessTokenConfig);
 		}
 	}
 }
