@@ -31,14 +31,15 @@ namespace SecureSign.Tools.KeyHandlers
 		/// <returns>The handler for this key file</returns>
 		public IKeyHandler GetHandler(string filename)
 		{
-			var keytype = KeyTypeUtils.FromFilename(filename);
-			var handler = _handlers.FirstOrDefault(x => x.KeyType == keytype);
-			if (handler == null)
+			try
 			{
-				throw new Exception("Unrecognised file extension. Please use .pfx for Authenticode or .gpg for GPG.");
+				var keytype = KeyTypeUtils.FromFilename(filename);
+				return _handlers.First(x => x.KeyType == keytype);
 			}
-
-			return handler;
+			catch (Exception ex)
+			{
+				throw new Exception($"Unrecognised file extension. Please use .pfx for Authenticode or .gpg for GPG. {ex.Message}");
+			}
 		}
 	}
 }
