@@ -6,6 +6,9 @@
  */
 
 using System;
+using System.IO;
+using System.Linq;
+using Libgpgme;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using SecureSign.Core;
@@ -21,12 +24,19 @@ namespace SecureSign.Web.Controllers
 	    private readonly IAccessTokenSerializer _accessTokenSerializer;
 	    private readonly ILogger<CertificateStatusController> _logger;
 	    private readonly ISecretStorage _secretStorage;
+	    private readonly Context _ctx;
 
-		public CertificateStatusController(ILogger<CertificateStatusController> logger, IAccessTokenSerializer accessTokenSerializer, ISecretStorage secretStorage)
+	    public CertificateStatusController(
+			ILogger<CertificateStatusController> logger,
+			IAccessTokenSerializer accessTokenSerializer,
+			ISecretStorage secretStorage,
+			Context ctx
+		)
 	    {
 		    _logger = logger;
 		    _accessTokenSerializer = accessTokenSerializer;
 		    _secretStorage = secretStorage;
+		    _ctx = ctx;
 	    }
 
 	    [Route("")]
@@ -43,17 +53,38 @@ namespace SecureSign.Web.Controllers
 				return Unauthorized();
 			}
 
-			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-			return Ok(new CertificateStatusResponse
+			// TODO: This should use factory pattern, like IKeyHandler
+			switch (Path.GetExtension(token.KeyName))
 			{
-				CreationDate = cert.NotBefore,
-				ExpiryDate = cert.NotAfter,
-				Issuer = cert.IssuerName.Format(false),
-				Name = cert.FriendlyName,
-				SerialNumber = cert.SerialNumber,
-				Subject = cert.SubjectName.Format(false),
-				Thumbprint = cert.Thumbprint,
-			});
+				case ".pfx":
+					var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
+					return Ok(new CertificateStatusResponse
+					{
+						CreationDate = cert.NotBefore,
+						ExpiryDate = cert.NotAfter,
+						Issuer = cert.IssuerName.Format(false),
+						Name = cert.FriendlyName,
+						SerialNumber = cert.SerialNumber,
+						Subject = cert.SubjectName.Format(false),
+						Thumbprint = cert.Thumbprint,
+					});
+
+				case ".gpg":
+					var key = _ctx.KeyStore.GetKey(token.KeyFingerprint, secretOnly: false);
+					var subkey = key.Subkeys.First(x => x.KeyId == token.KeyFingerprint);
+					return Ok(new CertificateStatusResponse
+					{
+						CreationDate = subkey.Timestamp,
+						ExpiryDate = subkey.Expires,
+						Issuer = key.IssuerName,
+						Name = token.KeyName,
+						Subject = key.Uid.Uid,
+						Thumbprint = subkey.KeyId,
+					});
+
+				default:
+					return NotFound("Unknown key type");
+			}
         }
     }
 }
