@@ -12,23 +12,28 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Libgpgme;
-using Microsoft.Extensions.Options;
 using SecureSign.Core;
-using SecureSign.Core.Models;
 
 namespace SecureSign.Tools
 {
+	/// <summary>
+	/// Handles adding new keys
+	/// </summary>
 	public class AddKey
 	{
 		private readonly ISecretStorage _secretStorage;
 		private readonly IPasswordGenerator _passwordGenerator;
-		private readonly PathConfig _pathConfig;
+		private readonly Context _gpgContext;
 
-		public AddKey(ISecretStorage secretStorage, IPasswordGenerator passwordGenerator, IOptions<PathConfig> pathConfig)
+		public AddKey(
+			ISecretStorage secretStorage, 
+			IPasswordGenerator passwordGenerator, 
+			Context gpgContext
+		)
 		{
 			_secretStorage = secretStorage;
 			_passwordGenerator = passwordGenerator;
-			_pathConfig = pathConfig.Value;
+			_gpgContext = gpgContext;
 		}
 
 		public void Run(string inputPath)
@@ -173,52 +178,49 @@ namespace SecureSign.Tools
 			return keys;
 		}
 
-		private void ImportAndEncryptSecretGpgKeys(List<Key> keys, string tempHomedir)
+		private void ImportAndEncryptSecretGpgKeys(IEnumerable<Key> keys, string tempHomedir)
 		{
 			foreach (var key in keys)
 			{
 				foreach (var subkey in key.Subkeys)
 				{
+					var inputFilename = subkey.Keygrip + ".key";
+					var outputFilename = subkey.Keygrip + ".gpg";
 					var keygripPath = Path.Join(
 						tempHomedir,
 						"private-keys-v1.d",
-						subkey.Keygrip + ".key"
+						inputFilename
 					);
 					var code = _passwordGenerator.Generate();
-					_secretStorage.SaveSecret(subkey.Keygrip + ".key", File.ReadAllBytes(keygripPath), code);
+					_secretStorage.SaveSecret(outputFilename, File.ReadAllBytes(keygripPath), code);
 					File.Delete(keygripPath);
 
 					Console.WriteLine($"- {subkey.KeyId}");
 					Console.WriteLine($"  Expires: {subkey.Expires}");
-					Console.WriteLine($"  Keygrip: {subkey.Keygrip}");
+					Console.WriteLine($"  Key name: {outputFilename}");
 					Console.WriteLine($"  Secret Code: {code}");
 					Console.WriteLine();
 				}
 			}
 		}
 
-		private void ImportPublicGpgKeys(List<Key> keys, Context tempCtx)
+		private void ImportPublicGpgKeys(IEnumerable<Key> keys, Context tempCtx)
 		{
-			using (var realCtx = new Context())
+			foreach (var key in keys)
 			{
-				realCtx.SetEngineInfo(Protocol.OpenPGP, null, _pathConfig.GpgHome);
-				realCtx.PinentryMode = PinentryMode.Error;
-				foreach (var key in keys)
+				var tempFile = Path.GetTempFileName();
+				try
 				{
-					var tempFile = Path.GetTempFileName();
-					try
+					// Export public key from temporary keychain and import into real keychain
+					tempCtx.KeyStore.Export(key.KeyId, tempFile);
+					using (var tempFileData = new GpgmeFileData(tempFile))
 					{
-						// Export public key from temporary keychain and import into real keychain
-						tempCtx.KeyStore.Export(key.KeyId, tempFile);
-						using (var tempFileData = new GpgmeFileData(tempFile))
-						{
-							realCtx.KeyStore.Import(tempFileData);
-						}
+						_gpgContext.KeyStore.Import(tempFileData);
 					}
-					finally
-					{
-						File.Delete(tempFile);
-					}
+				}
+				finally
+				{
+					File.Delete(tempFile);
 				}
 			}
 		}

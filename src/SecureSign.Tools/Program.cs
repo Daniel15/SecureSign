@@ -6,15 +6,10 @@
  */
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using SecureSign.Core;
 using SecureSign.Core.Extensions;
 using SecureSign.Core.Models;
@@ -82,69 +77,7 @@ namespace SecureSign.Tools
 			app.Command("addtoken", command =>
 			{
 				command.Description = "Add a new access token";
-				command.OnExecute(() =>
-				{
-					var name = ConsoleUtils.Prompt("Key name");
-					var code = ConsoleUtils.Prompt("Secret code");
-
-					try
-					{
-						_secretStorage.LoadSecret(name, code);
-					}
-					catch (Exception ex)
-					{
-						Console.Error.WriteLine($"Could not load key: {ex.Message}");
-						Console.Error.WriteLine("Please check that the name and secret code are valid.");
-						return 1;
-					}
-
-					// If we got here, the key is valid
-					var comment = ConsoleUtils.Prompt("Comment (optional)");
-
-					Console.WriteLine();
-					Console.WriteLine("Signing settings:");
-					var desc = ConsoleUtils.Prompt("Description");
-					var url = ConsoleUtils.Prompt("Product/Application URL");
-
-					var accessToken = new AccessToken
-					{
-						Id = Guid.NewGuid().ToShortGuid(),
-						Code = code,
-						IssuedAt = DateTime.Now,
-						KeyName = name,
-					};
-					var accessTokenConfig = new AccessTokenConfig
-					{
-						Comment = comment,
-						IssuedAt = accessToken.IssuedAt,
-						Valid = true,
-
-						SignDescription = desc,
-						SignUrl = url,
-					};
-
-					
-					// If this is the first time an access token is being added, we need to create the config file
-					if (!File.Exists(_pathConfig.AccessTokenConfig))
-					{
-						File.WriteAllText(_pathConfig.AccessTokenConfig, JsonConvert.SerializeObject(new
-						{
-							AccessTokens = new Dictionary<string, AccessToken>()
-						}));
-					}
-
-					// Save access token config to config file
-					dynamic configFile = JObject.Parse(File.ReadAllText(_pathConfig.AccessTokenConfig));
-					configFile.AccessTokens[accessToken.Id] = JToken.FromObject(accessTokenConfig);
-					File.WriteAllText(_pathConfig.AccessTokenConfig, JsonConvert.SerializeObject(configFile, Formatting.Indented));
-
-					var encodedAccessToken = _accessTokenSerializer.Serialize(accessToken);
-
-					Console.WriteLine();
-					Console.WriteLine("Created new access token:");
-					Console.WriteLine(encodedAccessToken);
-					return 0;
-				});
+				command.OnExecute(() => ActivatorUtilities.CreateInstance<AddToken>(_provider).Run());
 			});
 
 			try

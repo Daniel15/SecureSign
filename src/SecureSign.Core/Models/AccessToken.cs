@@ -28,9 +28,15 @@ namespace SecureSign.Core.Models
 		public DateTime IssuedAt { get; set; }
 
 		/// <summary>
-		/// Name of the key to use for signing requests using this access token
+		/// Name of the key to use for signing requests using this access token.
+		/// For GPG, this is the keygrip.
 		/// </summary>
 		public string KeyName { get; set; }
+
+		/// <summary>
+		/// Fingerprint of the key to use for signing. Only used for GPG.
+		/// </summary>
+		public string KeyFingerprint { get; set; }
 
 		/// <summary>
 		/// Decryption key for the key
