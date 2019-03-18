@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SecureSign.Core.Extensions;
+using SecureSign.Web.Controllers;
 using SecureSign.Web.Middleware;
 
 namespace SecureSign.Web
@@ -28,6 +30,7 @@ namespace SecureSign.Web
         {
 			services.AddSecureSignCore(Configuration);
 	        services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+			services.TryAddSingleton<SigningControllerUtils>();
 		}
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

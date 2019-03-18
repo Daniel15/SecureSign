@@ -36,6 +36,7 @@ namespace SecureSign.Core.Extensions
 			services.AddSingleton<ISecretStorage, SecretStorage>();
 		    services.AddSingleton<IAccessTokenSerializer, AccessTokenSerializer>();
 		    services.AddSingleton<IAuthenticodeSigner, AuthenticodeSigner>();
+		    services.AddScoped<IGpgSigner, GpgSigner>();
 
 			// Configuration
 		    services.Configure<PathConfig>(config.GetSection("Paths"));

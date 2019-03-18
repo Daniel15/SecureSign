@@ -13,7 +13,7 @@ namespace SecureSign.Web.Models
 	/// <summary>
 	/// Represents a request to sign a file using Authenticode
 	/// </summary>
-    public class AuthenticodeSignRequest
+    public class SignRequest
     {
 		/// <summary>
 		/// Gets or sets the access token for the request. Will decode to an instance of <see cref="AccessToken"/>.
