@@ -147,6 +147,11 @@ namespace SecureSign.Tools.KeyHandlers
 			{
 				foreach (var subkey in key.Subkeys)
 				{
+					if (!subkey.CanSign)
+					{
+						continue;
+					}
+
 					var inputFilename = subkey.Keygrip + ".key";
 					var outputFilename = subkey.Keygrip + ".gpg";
 					var keygripPath = Path.Join(
