@@ -7,7 +7,6 @@
 
 using System;
 using System.IO;
-using System.Text;
 using Libgpgme;
 using Microsoft.Extensions.Options;
 using SecureSign.Core.Models;
@@ -20,7 +19,8 @@ namespace SecureSign.Core.Signers
 	public class GpgSigner : IGpgSigner
 	{
 		private readonly Context _ctx;
-		private PathConfig _pathConfig;
+		private readonly PathConfig _pathConfig;
+		private static readonly object _signLock = new object();
 
 		public GpgSigner(IOptions<PathConfig> pathConfig, Context ctx)
 		{
@@ -38,40 +38,43 @@ namespace SecureSign.Core.Signers
 		/// <returns>ASCII-armored signature</returns>
 		public byte[] Sign(byte[] input, string keygrip, byte[] secretKeyFile, string fingerprint)
 		{
-			// Temporarily save the keygrip file to disk
-			// TODO: Lock for this key
-			var keygripPath = Path.Combine(_pathConfig.GpgHome, "private-keys-v1.d", keygrip + ".key");
-			try
+			// Since this signer messes with some global state (private keys in the GPG home directory),
+			// we must lock to ensure no other signing requests happen concurrently.
+			lock (_signLock)
 			{
-				File.WriteAllBytes(keygripPath, secretKeyFile);
-
-				var key = _ctx.KeyStore.GetKey(fingerprint, secretOnly: true);
-				_ctx.Signers.Clear();
-				_ctx.Signers.Add(key);
-				_ctx.Armor = true;
-
-				using (var inputData = new GpgmeMemoryData { FileName = "input" })
-				using (var inputWriter = new BinaryWriter(inputData))
-				using (var sigData = new GpgmeMemoryData { FileName = "signature.asc" })
+				var keygripPath = Path.Combine(_pathConfig.GpgHome, "private-keys-v1.d", keygrip + ".key");
+				try
 				{
-					inputWriter.Write(input);
-					var result = _ctx.Sign(inputData, sigData, SignatureMode.Clear);
-					if (result.InvalidSigners != null)
-					{
-						throw new Exception($"Could not sign: {result.InvalidSigners.Reason}");
-					}
+					File.WriteAllBytes(keygripPath, secretKeyFile);
 
-					using (var memStream = new MemoryStream())
+					var key = _ctx.KeyStore.GetKey(fingerprint, secretOnly: true);
+					_ctx.Signers.Clear();
+					_ctx.Signers.Add(key);
+					_ctx.Armor = true;
+
+					using (var inputData = new GpgmeMemoryData { FileName = "input" })
+					using (var inputWriter = new BinaryWriter(inputData))
+					using (var sigData = new GpgmeMemoryData { FileName = "signature.asc" })
 					{
-						sigData.Seek(0, SeekOrigin.Begin);
-						sigData.CopyTo(memStream);
-						return memStream.GetBuffer();
+						inputWriter.Write(input);
+						var result = _ctx.Sign(inputData, sigData, SignatureMode.Clear);
+						if (result.InvalidSigners != null)
+						{
+							throw new Exception($"Could not sign: {result.InvalidSigners.Reason}");
+						}
+
+						using (var memStream = new MemoryStream())
+						{
+							sigData.Seek(0, SeekOrigin.Begin);
+							sigData.CopyTo(memStream);
+							return memStream.GetBuffer();
+						}
 					}
 				}
-			}
-			finally
-			{
-				File.Delete(keygripPath);
+				finally
+				{
+					File.Delete(keygripPath);
+				}
 			}
 		}
 	}
