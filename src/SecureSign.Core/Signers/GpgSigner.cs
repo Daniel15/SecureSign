@@ -57,7 +57,7 @@ namespace SecureSign.Core.Signers
 					using (var sigData = new GpgmeMemoryData { FileName = "signature.asc" })
 					{
 						inputWriter.Write(input);
-						var result = _ctx.Sign(inputData, sigData, SignatureMode.Clear);
+						var result = _ctx.Sign(inputData, sigData, SignatureMode.Detach);
 						if (result.InvalidSigners != null)
 						{
 							throw new Exception($"Could not sign: {result.InvalidSigners.Reason}");
