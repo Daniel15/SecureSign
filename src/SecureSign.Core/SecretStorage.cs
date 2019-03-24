@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
+using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.DataProtection;
@@ -94,7 +95,20 @@ namespace SecureSign.Core
 		    return Path.Combine(_pathConfig.Certificates, name);
 	    }
 
-		/// <summary>
+	    /// <summary>
+	    /// Throws an exception if a secret with the specified name already exists.
+	    /// </summary>
+	    /// <param name="name">Name of the secret file</param>
+		public void ThrowIfSecretExists(string name)
+	    {
+			var outputPath = GetPathForSecret(name);
+			if (File.Exists(outputPath))
+			{
+				throw new Exception(outputPath + " already exists! I'm not going to overwrite it.");
+			}
+		}
+
+	    /// <summary>
 		/// Creates an <see cref="IDataProtector"/> to encrypt files with the specified key.
 		/// </summary>
 		/// <param name="encryptionKey">Key to use</param>

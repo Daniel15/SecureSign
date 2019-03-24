@@ -8,9 +8,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Libgpgme;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using SecureSign.Core.Models;
 using SecureSign.Core.Signers;
 
@@ -34,10 +36,21 @@ namespace SecureSign.Core.Extensions
 			services.AddSingleton<ISecretStorage, SecretStorage>();
 		    services.AddSingleton<IAccessTokenSerializer, AccessTokenSerializer>();
 		    services.AddSingleton<IAuthenticodeSigner, AuthenticodeSigner>();
+		    services.AddScoped<IGpgSigner, GpgSigner>();
 
 			// Configuration
 		    services.Configure<PathConfig>(config.GetSection("Paths"));
 		    services.Configure<Dictionary<string, AccessTokenConfig>>(config.GetSection("AccessTokens"));
+
+			// GPG
+			services.AddScoped<Context>(provider =>
+			{
+				var pathConfig = provider.GetRequiredService<IOptions<PathConfig>>();
+				var ctx = new Context();
+				ctx.SetEngineInfo(Protocol.OpenPGP, null, pathConfig.Value.GpgHome);
+				ctx.PinentryMode = PinentryMode.Error;
+				return ctx;
+			});
 
 			return services;
 	    }

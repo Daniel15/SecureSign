@@ -312,3 +312,5 @@ __pycache__/
 
 # OpenCover UI analysis results
 OpenCover/
+.gnupg/
+secrets/
