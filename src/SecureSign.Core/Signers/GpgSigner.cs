@@ -43,20 +43,20 @@ namespace SecureSign.Core.Signers
 			lock (_signLock)
 			{
 				var keygripPath = Path.Combine(_pathConfig.GpgHome, "private-keys-v1.d", keygrip + ".key");
+				var inputPath = Path.GetTempFileName();
 				try
 				{
 					File.WriteAllBytes(keygripPath, secretKeyFile);
+					File.WriteAllBytes(inputPath, input);
 
 					var key = _ctx.KeyStore.GetKey(fingerprint, secretOnly: true);
 					_ctx.Signers.Clear();
 					_ctx.Signers.Add(key);
 					_ctx.Armor = true;
 
-					using (var inputData = new GpgmeMemoryData { FileName = "input" })
-					using (var inputWriter = new BinaryWriter(inputData))
+					using (var inputData = new GpgmeFileData(inputPath, FileMode.Open, FileAccess.Read))
 					using (var sigData = new GpgmeMemoryData { FileName = "signature.asc" })
 					{
-						inputWriter.Write(input);
 						var result = _ctx.Sign(inputData, sigData, SignatureMode.Detach);
 						if (result.InvalidSigners != null)
 						{
@@ -74,6 +74,7 @@ namespace SecureSign.Core.Signers
 				finally
 				{
 					File.Delete(keygripPath);
+					File.Delete(inputPath);
 				}
 			}
 		}
