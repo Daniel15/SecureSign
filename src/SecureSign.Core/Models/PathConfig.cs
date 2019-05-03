@@ -47,7 +47,7 @@ namespace SecureSign.Core.Models
 		/// <summary>
 		/// Gets or sets the path to signtool.exe
 		/// </summary>
-	    public string SignTool { get; set; } = @"C:\Program Files (x86)\Windows Kits\8.1\bin\x86\signtool.exe";
+	    public string SignTool { get; set; } = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.17763.0\x86\signtool.exe";
 
     }
 }

@@ -50,7 +50,7 @@ namespace SecureSign.Web.Controllers
 			}
 
 			var secretKey = _secretStorage.LoadSecret(token.KeyName, token.Code);
-			var (artifact, artifactError) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
+			var (artifact, artifactError, fileExtension) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
 			if (artifactError != null)
 			{
 				return artifactError;
