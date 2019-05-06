@@ -4,6 +4,4 @@ root = true
 indent_size = 4
 indent_style=tab
 trim_trailing_whitespace = true
-
-[*.cs]
-csharp_new_line_before_open_brace = methods
+curly_bracket_next_line = true

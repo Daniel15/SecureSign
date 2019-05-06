@@ -22,7 +22,7 @@ namespace SecureSign.Web.Controllers
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAuthenticodeSigner _signer;
 		private readonly SigningControllerUtils _utils;
-		
+
 
 		public AuthenticodeSigningController(
 			ISecretStorage secretStorage,
@@ -43,21 +43,21 @@ namespace SecureSign.Web.Controllers
 		[Route("sign/authenticode")]
 		public async Task<IActionResult> SignUsingAuthenticode(SignRequest request)
 		{
-		var (token, tokenConfig, tokenError) = _utils.TryGetAccessToken(request);
-		if (tokenError != null)
-		{
-			return tokenError;
-		}
+			var (token, tokenConfig, tokenError) = _utils.TryGetAccessToken(request);
+			if (tokenError != null)
+			{
+				return tokenError;
+			}
 
-		var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-		var (artifact, artifactError, fileExtention) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
-		if (artifactError != null)
-		{
-			return artifactError;
-		}
-            
-		var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl, fileExtention);
-		return File(signed, "application/octet-stream");
+			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
+			var (artifact, artifactError, fileExtention) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
+			if (artifactError != null)
+			{
+				return artifactError;
+			}
+
+			var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl, fileExtention);
+			return File(signed, "application/octet-stream");
 		}
 	}
 }

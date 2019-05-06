@@ -15,15 +15,15 @@ namespace SecureSign.Core.Signers
 	/// </summary>
 	public interface IAuthenticodeSigner
 	{
-        /// <summary>
-        /// Signs the provided resource with an Authenticode signature.
-        /// </summary>
-        /// <param name="input">Object to sign</param>
-        /// <param name="cert">Certificate to use for signing</param>
-        /// <param name="description">Description to sign the object with</param>
-        /// <param name="url">URL to include in the signature</param>
+		/// <summary>
+		/// Signs the provided resource with an Authenticode signature.
+		/// </summary>
+		/// <param name="input">Object to sign</param>
+		/// <param name="cert">Certificate to use for signing</param>
+		/// <param name="description">Description to sign the object with</param>
+		/// <param name="url">URL to include in the signature</param>
 		/// <param name="fileExtention">Extention type of the file to sign</param>
-        /// <returns>A signed copy of the file</returns>
-        Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url, string fileExtention);
+		/// <returns>A signed copy of the file</returns>
+		Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url, string fileExtention);
 	}
 }

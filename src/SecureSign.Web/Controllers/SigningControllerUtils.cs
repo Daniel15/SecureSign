@@ -85,8 +85,8 @@ namespace SecureSign.Web.Controllers
 					_logger.LogInformation("Signing request received: {Id} is signing {ArtifactUrl}", token.Id,
 						request.ArtifactUrl);
 					var artifact = await _httpClient.GetByteArrayAsync(request.ArtifactUrl);
-                    var fileExtension = Path.GetExtension(request.ArtifactUrl.AbsolutePath);
-                    return (artifact, null, fileExtension);
+					var fileExtension = Path.GetExtension(request.ArtifactUrl.AbsolutePath);
+					return (artifact, null, fileExtension);
 				}
 
 				if (request.Artifact != null)
@@ -96,8 +96,8 @@ namespace SecureSign.Web.Controllers
 					using (var stream = new MemoryStream())
 					{
 						await request.Artifact.CopyToAsync(stream);
-                        var fileExtension = Path.GetExtension(request.Artifact.FileName);
-                        return (stream.ToArray(), null, fileExtension);
+						var fileExtension = Path.GetExtension(request.Artifact.FileName);
+						return (stream.ToArray(), null, fileExtension);
 					}
 				}
 
