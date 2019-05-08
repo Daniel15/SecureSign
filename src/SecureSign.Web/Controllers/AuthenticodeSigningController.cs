@@ -22,7 +22,7 @@ namespace SecureSign.Web.Controllers
 		private readonly ISecretStorage _secretStorage;
 		private readonly IAuthenticodeSigner _signer;
 		private readonly SigningControllerUtils _utils;
-		
+
 
 		public AuthenticodeSigningController(
 			ISecretStorage secretStorage,
@@ -50,13 +50,13 @@ namespace SecureSign.Web.Controllers
 			}
 
 			var cert = _secretStorage.LoadAuthenticodeCertificate(token.KeyName, token.Code);
-			var (artifact, artifactError) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
+			var (artifact, artifactError, fileExtention) = await _utils.GetFileFromPayloadAsync(token, tokenConfig, request);
 			if (artifactError != null)
 			{
 				return artifactError;
 			}
 
-			var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl);
+			var signed = await _signer.SignAsync(artifact, cert, tokenConfig.SignDescription, tokenConfig.SignUrl, fileExtention);
 			return File(signed, "application/octet-stream");
 		}
 	}

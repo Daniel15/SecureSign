@@ -46,11 +46,11 @@ namespace SecureSign.Core.Signers
 		/// <param name="description">Description to sign the object with</param>
 		/// <param name="url">URL to include in the signature</param>
 		/// <returns>A signed copy of the file</returns>
-		public async Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url)
+		public async Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url, string fileExtention)
 		{
 			// Temporarily save the cert to disk with a random password, as osslsigncode needs to read it from disk.
 			var password = _passwordGenerator.Generate();
-			var inputFile = Path.GetTempFileName();
+			var inputFile = Path.GetTempFileName() + fileExtention;
 			var certFile = Path.GetTempFileName();
 
 			try
@@ -61,7 +61,14 @@ namespace SecureSign.Core.Signers
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					return await SignUsingSignToolAsync(inputFile, certFile, password, description, url);
+					if (fileExtention.Contains("ps"))
+					{
+						return await SignUsingPowerShellAsync(inputFile, certFile, password);
+					}
+					else
+					{
+						return await SignUsingSignToolAsync(inputFile, certFile, password, description, url);
+					}
 				}
 				else
 				{
@@ -104,6 +111,30 @@ namespace SecureSign.Core.Signers
 			);
 
 			// SignTool signs in-place, so just return the file we were given.
+			return File.ReadAllBytes(inputFile);
+		}
+
+		/// <summary>
+		/// Signs the specified file using Powershell Set-Authenticode
+		/// </summary>
+		/// <param name="inputFile">File to sign</param>
+		/// <param name="certFile">Path to the certificate to use for signing</param>
+		/// <param name="certPassword">Password for the certificate</param>
+		/// <returns>A signed copy of the file</returns>
+		private async Task<byte[]> SignUsingPowerShellAsync(string inputFile, string certFile, string certPassword)
+		{
+			await RunProcessAsync(
+				"powershell.exe",
+				new[]
+				{
+					"-command",
+					"\"$Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2;",
+					$"$Cert.Import('{CommandLineEncoder.Utils.EncodeArgText(certFile)}','{CommandLineEncoder.Utils.EncodeArgText(certPassword)}',[System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet);",
+					$"Set-AuthenticodeSignature '{CommandLineEncoder.Utils.EncodeArgText(inputFile)}' $Cert -Timestamp http://timestamp.digicert.com\"",
+				}
+			);
+
+			// PowerShell signs in-place, so just return the file we were given.
 			return File.ReadAllBytes(inputFile);
 		}
 
