@@ -21,6 +21,8 @@ Prerequisites
 
 Usage
 =====
+The `publish.sh` script will build SecureSign into the `published` directory.
+
 Before using SecureSign, you need to add your private signing keys. For Authenticode, ensure you have the key as a `.pfx` file. For GPG, ensure you export the secret key without a passphrase, and name the file with a `.gpg` extension.
 
 Once you have your key file, use the `addkey` command:
