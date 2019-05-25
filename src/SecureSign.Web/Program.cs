@@ -21,6 +21,10 @@ namespace SecureSign.Web
 		public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
 			WebHost.CreateDefaultBuilder(args)
 				.ConfigureAppConfiguration(builder => builder.AddSecureSignConfig())
+				.ConfigureKestrel(options =>
+				{
+					options.Limits.MaxRequestBodySize = Constants.MAX_ARTIFACT_SIZE;
+				})
 				.UseStartup<Startup>();
 	}
 }

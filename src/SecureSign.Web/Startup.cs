@@ -7,6 +7,7 @@
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,11 @@ namespace SecureSign.Web
 			services.AddSecureSignCore(Configuration);
 	        services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 			services.TryAddSingleton<SigningControllerUtils>();
-		}
+			services.Configure<FormOptions>(x =>
+			{
+				x.MultipartBodyLengthLimit = Constants.MAX_ARTIFACT_SIZE;
+			});
+        }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
