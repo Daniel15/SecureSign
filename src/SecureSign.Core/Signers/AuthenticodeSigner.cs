@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,6 +15,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using SecureSign.Core.Exceptions;
+using SecureSign.Core.Extensions;
 using SecureSign.Core.Models;
 
 namespace SecureSign.Core.Signers
@@ -21,12 +23,16 @@ namespace SecureSign.Core.Signers
 	/// <summary>
 	/// A signer implementation that signs files with an Authenticode signature.
 	/// </summary>
-	public class AuthenticodeSigner : IAuthenticodeSigner
+	public class AuthenticodeSigner : IAuthenticodeSigner, IDisposable
 	{
-		private const int TIMEOUT = 10000;
+		private const int TIMEOUT = 60_000;
 
 		private readonly IPasswordGenerator _passwordGenerator;
 		private readonly PathConfig _pathConfig;
+		/// <summary>
+		/// Files to delete AFTER the request completes.
+		/// </summary>
+		private readonly List<string> _filesToDelete = new List<string>();
 
 		/// <summary>
 		/// Creates a new <see cref="AuthenticodeSigner"/>.
@@ -46,18 +52,19 @@ namespace SecureSign.Core.Signers
 		/// <param name="description">Description to sign the object with</param>
 		/// <param name="url">URL to include in the signature</param>
 		/// <returns>A signed copy of the file</returns>
-		public async Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url, string fileExtention)
+		public async Task<Stream> SignAsync(Stream input, X509Certificate2 cert, string description, string url, string fileExtention)
 		{
 			// Temporarily save the cert to disk with a random password, as osslsigncode needs to read it from disk.
 			var password = _passwordGenerator.Generate();
 			var inputFile = Path.GetTempFileName() + fileExtention;
 			var certFile = Path.GetTempFileName();
+			_filesToDelete.Add(inputFile);
 
 			try
 			{
 				var exportedCert = cert.Export(X509ContentType.Pfx, password);
 				File.WriteAllBytes(certFile, exportedCert);
-				File.WriteAllBytes(inputFile, input);
+				await input.CopyToFileAsync(inputFile);
 
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
@@ -91,7 +98,7 @@ namespace SecureSign.Core.Signers
 		/// <param name="description">Description to sign the object with</param>
 		/// <param name="url">URL to include in the signature</param>
 		/// <returns>A signed copy of the file</returns>
-		private async Task<byte[]> SignUsingSignToolAsync(string inputFile, string certFile, string certPassword, string description, string url)
+		private async Task<Stream> SignUsingSignToolAsync(string inputFile, string certFile, string certPassword, string description, string url)
 		{
 			await RunProcessAsync(
 				_pathConfig.SignTool,
@@ -111,7 +118,7 @@ namespace SecureSign.Core.Signers
 			);
 
 			// SignTool signs in-place, so just return the file we were given.
-			return File.ReadAllBytes(inputFile);
+			return File.OpenRead(inputFile);
 		}
 
 		/// <summary>
@@ -121,7 +128,7 @@ namespace SecureSign.Core.Signers
 		/// <param name="certFile">Path to the certificate to use for signing</param>
 		/// <param name="certPassword">Password for the certificate</param>
 		/// <returns>A signed copy of the file</returns>
-		private async Task<byte[]> SignUsingPowerShellAsync(string inputFile, string certFile, string certPassword)
+		private async Task<Stream> SignUsingPowerShellAsync(string inputFile, string certFile, string certPassword)
 		{
 			await RunProcessAsync(
 				"powershell.exe",
@@ -135,7 +142,7 @@ namespace SecureSign.Core.Signers
 			);
 
 			// PowerShell signs in-place, so just return the file we were given.
-			return File.ReadAllBytes(inputFile);
+			return File.OpenRead(inputFile);
 		}
 
 		/// <summary>
@@ -147,10 +154,11 @@ namespace SecureSign.Core.Signers
 		/// <param name="description">Description to sign the object with</param>
 		/// <param name="url">URL to include in the signature</param>
 		/// <returns>A signed copy of the file</returns>
-		private async Task<byte[]> SignUsingOpenSsl(string inputFile, string certFile, string certPassword,
+		private async Task<Stream> SignUsingOpenSsl(string inputFile, string certFile, string certPassword,
 			string description, string url)
 		{
 			var outputFile = Path.GetTempFileName();
+			_filesToDelete.Add(outputFile);
 
 			// Command-line arguments can be shown in the output of "ps". Therefore, we don't want to pass
 			// the certificate's password at the command-line. Instead, save it into a temp file that's
@@ -183,12 +191,11 @@ namespace SecureSign.Core.Signers
 					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
 				});
 
-				return File.ReadAllBytes(outputFile);
+				return File.OpenRead(outputFile);
 			}
 			finally
 			{
 				File.Delete(certPasswordFile);
-				File.Delete(outputFile);
 			}
 		}
 
@@ -233,6 +240,14 @@ namespace SecureSign.Core.Signers
 			{
 				var errorOutput = await process.StandardError.ReadToEndAsync();
 				throw new AuthenticodeFailedException("Failed to Authenticode sign: " + errorOutput);
+			}
+		}
+
+		public void Dispose()
+		{
+			foreach (var file in _filesToDelete)
+			{
+				File.Delete(file);
 			}
 		}
 	}

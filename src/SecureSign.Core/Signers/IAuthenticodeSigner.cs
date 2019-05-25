@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -24,6 +25,6 @@ namespace SecureSign.Core.Signers
 		/// <param name="url">URL to include in the signature</param>
 		/// <param name="fileExtention">Extention type of the file to sign</param>
 		/// <returns>A signed copy of the file</returns>
-		Task<byte[]> SignAsync(byte[] input, X509Certificate2 cert, string description, string url, string fileExtention);
+		Task<Stream> SignAsync(Stream input, X509Certificate2 cert, string description, string url, string fileExtention);
 	}
 }

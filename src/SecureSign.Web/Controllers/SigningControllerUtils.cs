@@ -71,7 +71,7 @@ namespace SecureSign.Web.Controllers
 		/// <param name="tokenConfig">Configuration for this access token</param>
 		/// <param name="request">The request</param>
 		/// <returns>The file contents</returns>
-		public async Task<(byte[], IActionResult, string)> GetFileFromPayloadAsync(AccessToken token, AccessTokenConfig tokenConfig, SignRequest request)
+		public async Task<(Stream, IActionResult, string)> GetFileFromPayloadAsync(AccessToken token, AccessTokenConfig tokenConfig, SignRequest request)
 		{
 			try
 			{
@@ -84,7 +84,7 @@ namespace SecureSign.Web.Controllers
 				{
 					_logger.LogInformation("Signing request received: {Id} is signing {ArtifactUrl}", token.Id,
 						request.ArtifactUrl);
-					var artifact = await _httpClient.GetByteArrayAsync(request.ArtifactUrl);
+					var artifact = await _httpClient.GetStreamAsync(request.ArtifactUrl);
 					var fileExtension = Path.GetExtension(request.ArtifactUrl.AbsolutePath);
 					return (artifact, null, fileExtension);
 				}
@@ -93,12 +93,8 @@ namespace SecureSign.Web.Controllers
 				{
 					_logger.LogInformation("Signing request received: {Id} is signing {Filename}", token.Id,
 						request.Artifact.FileName);
-					using (var stream = new MemoryStream())
-					{
-						await request.Artifact.CopyToAsync(stream);
-						var fileExtension = Path.GetExtension(request.Artifact.FileName);
-						return (stream.ToArray(), null, fileExtension);
-					}
+					var fileExtension = Path.GetExtension(request.Artifact.FileName);
+					return (request.Artifact.OpenReadStream(), null, fileExtension);
 				}
 
 				return (null, new BadRequestObjectResult("No artifact found to sign"), null);

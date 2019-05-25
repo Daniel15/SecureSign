@@ -5,6 +5,8 @@
  * LICENSE file in the root directory of this source tree. 
  */
 
+using System.IO;
+
 namespace SecureSign.Core.Signers
 {
 	/// <summary>
@@ -20,6 +22,6 @@ namespace SecureSign.Core.Signers
 		/// <param name="secretKeyFile">Contents of the secret key file</param>
 		/// <param name="fingerprint">Fingerprint of the key</param>
 		/// <returns>ASCII-armored signature</returns>
-		byte[] Sign(byte[] input, string keygrip, byte[] secretKeyFile, string fingerprint);
+		Stream Sign(Stream input, string keygrip, byte[] secretKeyFile, string fingerprint);
 	}
 }

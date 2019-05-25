@@ -35,7 +35,7 @@ namespace SecureSign.Core.Extensions
 		    services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
 			services.AddSingleton<ISecretStorage, SecretStorage>();
 		    services.AddSingleton<IAccessTokenSerializer, AccessTokenSerializer>();
-		    services.AddSingleton<IAuthenticodeSigner, AuthenticodeSigner>();
+		    services.AddScoped<IAuthenticodeSigner, AuthenticodeSigner>();
 		    services.AddScoped<IGpgSigner, GpgSigner>();
 
 			// Configuration
