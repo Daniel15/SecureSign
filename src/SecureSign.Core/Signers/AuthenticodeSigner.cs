@@ -66,7 +66,7 @@ namespace SecureSign.Core.Signers
 				File.WriteAllBytes(certFile, exportedCert);
 				await input.CopyToFileAsync(inputFile);
 
-				if (fileExtention.Contains("nupkg"))
+				if (fileExtention == "nupkg")
 				{
 					return await SignUsingNugetAsync(inputFile, certFile, password);
 				}
@@ -190,7 +190,7 @@ namespace SecureSign.Core.Signers
 				);
 			}
 
-			// SignTool signs in-place, so just return the file we were given.
+			// nuget signs in-place, so just return the file we were given.
 			return File.OpenRead(inputFile);
 		}
 
