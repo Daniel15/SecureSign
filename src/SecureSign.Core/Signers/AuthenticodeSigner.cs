@@ -66,6 +66,11 @@ namespace SecureSign.Core.Signers
 				File.WriteAllBytes(certFile, exportedCert);
 				await input.CopyToFileAsync(inputFile);
 
+				if (fileExtention.Contains("nupkg"))
+				{
+					return await SignUsingNugetAsync(inputFile, certFile, password);
+				}
+
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
 					if (fileExtention.Contains("ps"))
@@ -142,6 +147,50 @@ namespace SecureSign.Core.Signers
 			);
 
 			// PowerShell signs in-place, so just return the file we were given.
+			return File.OpenRead(inputFile);
+		}
+
+		/// <summary>
+		/// Signs the specified file using nuget.exe. Needs to be a nupkg
+		/// </summary>
+		/// <param name="inputFile">File to sign</param>
+		/// <param name="certFile">Path to the certificate to use for signing</param>
+		/// <param name="certPassword">Password for the certificate</param>
+		/// <returns>A signed copy of the file</returns>
+		private async Task<Stream> SignUsingNugetAsync(string inputFile, string certFile, string certPassword)
+		{
+			// if we aren't windows, we need to call nuget from mono
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				await RunProcessAsync(
+					"mono",
+					new[]
+					{
+						_pathConfig.Nuget,
+						"sign",
+						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
+						"-Timestamper http://timestamp.digicert.com",
+						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+					}
+				);
+			}
+			else
+			{
+				await RunProcessAsync(
+					_pathConfig.Nuget,
+					new[]
+					{
+						"sign",
+						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
+						"-Timestamper http://timestamp.digicert.com",
+						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+					}
+				);
+			}
+
+			// SignTool signs in-place, so just return the file we were given.
 			return File.OpenRead(inputFile);
 		}
 
