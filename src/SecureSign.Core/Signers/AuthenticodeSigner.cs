@@ -115,7 +115,7 @@ namespace SecureSign.Core.Signers
 					$"/p \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
 					$"/d \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
 					$"/du \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
-					"/tr http://timestamp.digicert.com",
+					$"/tr {_pathConfig.Timestamper}",
 					"/td sha256",
 					"/fd sha256",
 					$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
@@ -142,7 +142,7 @@ namespace SecureSign.Core.Signers
 					"-command",
 					"\"$Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2;",
 					$"$Cert.Import('{CommandLineEncoder.Utils.EncodeArgText(certFile)}','{CommandLineEncoder.Utils.EncodeArgText(certPassword)}',[System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet);",
-					$"Set-AuthenticodeSignature '{CommandLineEncoder.Utils.EncodeArgText(inputFile)}' $Cert -Timestamp http://timestamp.digicert.com\"",
+					$"Set-AuthenticodeSignature '{CommandLineEncoder.Utils.EncodeArgText(inputFile)}' $Cert -Timestamp {_pathConfig.Timestamper}\"",
 				}
 			);
 
@@ -170,7 +170,7 @@ namespace SecureSign.Core.Signers
 						"sign",
 						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
 						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
-						"-Timestamper http://timestamp.digicert.com",
+						$"-Timestamper {_pathConfig.Timestamper}",
 						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
 					}
 				);
@@ -184,7 +184,7 @@ namespace SecureSign.Core.Signers
 						"sign",
 						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
 						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
-						"-Timestamper http://timestamp.digicert.com",
+						$"-Timestamper {_pathConfig.Timestamper}",
 						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
 					}
 				);
@@ -253,7 +253,7 @@ namespace SecureSign.Core.Signers
 			var args = new List<string>
 			{
 				"sign",
-				"-ts http://timestamp.digicert.com",
+				$"-ts {_pathConfig.Timestamper}",
 				$"-n \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
 				$"-i \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
 				$"-pkcs12 \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",

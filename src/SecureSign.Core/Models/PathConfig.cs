@@ -54,5 +54,10 @@ namespace SecureSign.Core.Models
 		/// </summary>
 		public string Nuget { get; set; } = @"nuget";
 
+		/// <summary>
+		/// Gets or sets the timestamp service url for Authenticode signing
+		/// </summary>
+		public string Timestamper { get; set; } = @"http://timestamp.digicert.com";
+
 	}
 }
