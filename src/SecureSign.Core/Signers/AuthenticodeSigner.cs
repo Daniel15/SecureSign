@@ -157,8 +157,15 @@ namespace SecureSign.Core.Signers
 		private async Task<Stream> SignUsingOpenSsl(string inputFile, string certFile, string certPassword,
 			string description, string url)
 		{
+			// An intermediate file is used for dual signing since osslsigncode no longer supports in-place signing.
+			var intermediateFile = Path.GetTempFileName();
 			var outputFile = Path.GetTempFileName();
+			_filesToDelete.Add(intermediateFile);
 			_filesToDelete.Add(outputFile);
+
+			// Path.GetTempFileName() creates the file on disk, which osslsigncode doesn't like, so delete them first.
+			File.Delete(intermediateFile);
+			File.Delete(outputFile);
 
 			// Command-line arguments can be shown in the output of "ps". Therefore, we don't want to pass
 			// the certificate's password at the command-line. Instead, save it into a temp file that's
@@ -179,7 +186,7 @@ namespace SecureSign.Core.Signers
 				{
 					"-h sha1",
 					$"-in \"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
-					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
+					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(intermediateFile)}\"",
 				});
 
 				// Now sign with SHA256
@@ -187,7 +194,7 @@ namespace SecureSign.Core.Signers
 				{
 					"-nest",
 					"-h sha2",
-					$"-in \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
+					$"-in \"{CommandLineEncoder.Utils.EncodeArgText(intermediateFile)}\"",
 					$"-out \"{CommandLineEncoder.Utils.EncodeArgText(outputFile)}\"",
 				});
 
@@ -239,7 +246,8 @@ namespace SecureSign.Core.Signers
 			if (process.ExitCode != 0)
 			{
 				var errorOutput = await process.StandardError.ReadToEndAsync();
-				throw new AuthenticodeFailedException("Failed to Authenticode sign: " + errorOutput);
+				var stdOutput = await process.StandardOutput.ReadToEndAsync();
+				throw new AuthenticodeFailedException("Failed to Authenticode sign: " + errorOutput + ", " + stdOutput);
 			}
 		}
 
