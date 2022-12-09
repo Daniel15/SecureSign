@@ -66,6 +66,11 @@ namespace SecureSign.Core.Signers
 				File.WriteAllBytes(certFile, exportedCert);
 				await input.CopyToFileAsync(inputFile);
 
+				if (fileExtention == "nupkg")
+				{
+					return await SignUsingNugetAsync(inputFile, certFile, password);
+				}
+
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
 					if (fileExtention.Contains("ps"))
@@ -110,7 +115,7 @@ namespace SecureSign.Core.Signers
 					$"/p \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
 					$"/d \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
 					$"/du \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
-					"/tr http://timestamp.digicert.com",
+					$"/tr {_pathConfig.Timestamper}",
 					"/td sha256",
 					"/fd sha256",
 					$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
@@ -137,11 +142,55 @@ namespace SecureSign.Core.Signers
 					"-command",
 					"\"$Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2;",
 					$"$Cert.Import('{CommandLineEncoder.Utils.EncodeArgText(certFile)}','{CommandLineEncoder.Utils.EncodeArgText(certPassword)}',[System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::DefaultKeySet);",
-					$"Set-AuthenticodeSignature '{CommandLineEncoder.Utils.EncodeArgText(inputFile)}' $Cert -Timestamp http://timestamp.digicert.com\"",
+					$"Set-AuthenticodeSignature '{CommandLineEncoder.Utils.EncodeArgText(inputFile)}' $Cert -Timestamp {_pathConfig.Timestamper}\"",
 				}
 			);
 
 			// PowerShell signs in-place, so just return the file we were given.
+			return File.OpenRead(inputFile);
+		}
+
+		/// <summary>
+		/// Signs the specified file using nuget.exe. Needs to be a nupkg
+		/// </summary>
+		/// <param name="inputFile">File to sign</param>
+		/// <param name="certFile">Path to the certificate to use for signing</param>
+		/// <param name="certPassword">Password for the certificate</param>
+		/// <returns>A signed copy of the file</returns>
+		private async Task<Stream> SignUsingNugetAsync(string inputFile, string certFile, string certPassword)
+		{
+			// if we aren't windows, we need to call nuget from mono
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				await RunProcessAsync(
+					"mono",
+					new[]
+					{
+						_pathConfig.Nuget,
+						"sign",
+						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
+						$"-Timestamper {_pathConfig.Timestamper}",
+						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+					}
+				);
+			}
+			else
+			{
+				await RunProcessAsync(
+					_pathConfig.Nuget,
+					new[]
+					{
+						"sign",
+						$"-CertificatePath \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",
+						$"-CertificatePassword \"{CommandLineEncoder.Utils.EncodeArgText(certPassword)}\"",
+						$"-Timestamper {_pathConfig.Timestamper}",
+						$"\"{CommandLineEncoder.Utils.EncodeArgText(inputFile)}\"",
+					}
+				);
+			}
+
+			// nuget signs in-place, so just return the file we were given.
 			return File.OpenRead(inputFile);
 		}
 
@@ -211,7 +260,7 @@ namespace SecureSign.Core.Signers
 			var args = new List<string>
 			{
 				"sign",
-				"-ts http://timestamp.digicert.com",
+				$"-ts {_pathConfig.Timestamper}",
 				$"-n \"{CommandLineEncoder.Utils.EncodeArgText(description)}\"",
 				$"-i \"{CommandLineEncoder.Utils.EncodeArgText(url)}\"",
 				$"-pkcs12 \"{CommandLineEncoder.Utils.EncodeArgText(certFile)}\"",

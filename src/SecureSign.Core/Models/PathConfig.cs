@@ -49,5 +49,15 @@ namespace SecureSign.Core.Models
 		/// </summary>
 		public string SignTool { get; set; } = @"C:\Program Files (x86)\Windows Kits\10\bin\10.0.17763.0\x86\signtool.exe";
 
+		/// <summary>
+		/// Gets or sets the path to nuget.exe
+		/// </summary>
+		public string Nuget { get; set; } = @"nuget";
+
+		/// <summary>
+		/// Gets or sets the timestamp service url for Authenticode signing
+		/// </summary>
+		public string Timestamper { get; set; } = @"http://timestamp.digicert.com";
+
 	}
 }
